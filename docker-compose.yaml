@@ -1,19 +1,16 @@
 services:
+  # Speech service
   speaches:
     container_name: speaches
     image: ghcr.io/speaches-ai/speaches:latest-cuda-12.6.3
     restart: unless-stopped
     ports:
-      - "${SPEACHES_PORT:-2021}:8000"
+      - "${SPEACHES_PORT:-1011}:8000"
+    user: "0:0"
     volumes:
       - ./data/volumes/speaches:/home/ubuntu/.cache/huggingface/hub
     environment:
-      STT_MODEL_TTL: "-1"
-      TTS_MODEL_TTL: "-1"
-      PRELOAD_MODELS: '[
-        "Systran/faster-distil-whisper-small.en",
-        "speaches-ai/Kokoro-82M-v1.0-ONNX"
-      ]'
+      CUDA_VISIBLE_DEVICES: "${SPEACHES_DEVICE:-0}"
       WHISPER__INFERENCE_DEVICE: "cuda"
       WHISPER__COMPUTE_TYPE: "float16"
     healthcheck:
@@ -29,7 +26,111 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    networks:
+      - karb-network
 
+  # Text Embedding Service
+  text-embedding:
+    image: ghcr.io/huggingface/text-embeddings-inference:1.7
+    container_name: text_embedding
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
+    restart: unless-stopped
+    ports:
+      - "${TEXT_EMBEDDING_PORT:-1012}:1151"
+    volumes:
+      - ./data/volumes/text-embedding/Qwen3-Embedding-0.6B:/data/Qwen3-Embedding-0.6B
+    environment:
+      MODEL_ID: /data/Qwen3-Embedding-0.6B
+      CUDA_VISIBLE_DEVICES: "${TEXT_EMBEDDING_DEVICE:-1}"
+      PORT: "1151"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1151/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - karb-network
 
+  # VectorDB (milvus) service
+  etcd:
+    container_name: etcd
+    image: quay.io/coreos/etcd:v3.5.5
+    environment:
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: "1000"
+      ETCD_QUOTA_BACKEND_BYTES: "4294967296"
+      ETCD_SNAPSHOT_COUNT: "50000"
+    command: >
+      etcd -advertise-client-urls http://etcd:2379
+           -listen-client-urls http://0.0.0.0:2379
+           -listen-peer-urls http://0.0.0.0:2380
+           -initial-advertise-peer-urls http://etcd:2380
+           -initial-cluster etcd=http://etcd:2380
+           -initial-cluster-state new
+           -name etcd
+    volumes:
+      - ./volumes/etcd:/etcd-data
+    networks:
+      - karb-network
+
+  minio:
+    container_name: minio
+    image: minio/minio:RELEASE.2023-09-30T07-02-29Z
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    command: server /minio_data --console-address ":9001"
+    volumes:
+      - ./volumes/minio:/minio_data
+    ports:
+      - "9001:9001"
+    networks:
+      - karb-network
+
+  milvus:
+    container_name: milvus
+    image: milvusdb/milvus:v2.4.7
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_USE_SSL: "false"
+      DATA_NODE_DATA_PATH: /var/lib/milvus
+      MILVUS_LOG_LEVEL: info
+    volumes:
+      - ./volumes/milvus:/var/lib/milvus
+    ports:
+      - "${MILVUS_HTTP_PORT:-1013}:19530"
+      - "${MILVUS_GRPC_PORT:-1014}:9091"
+    depends_on:
+      - etcd
+      - minio
+    networks:
+      - karb-network
+
+  # Milvus console (Attu) service
+  attu:
+    container_name: zilliz-attu
+    image: zilliz/attu:v2.4.7
+    environment:
+      MILVUS_URL: milvus:19530
+    ports:
+      - "${ATTU_PORT:-1015}:3000"
+    depends_on:
+      - milvus
+    networks:
+      - karb-network
+
+networks:
+  karb-network:
+    driver: bridge
 
 
