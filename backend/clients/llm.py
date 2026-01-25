@@ -21,4 +21,4 @@ if __name__ == "__main__":
     dotenv.load_dotenv()
     chat_model = get_chat_model()
 
-    print(chat_model.invoke("hello, world!"))
+    print(chat_model.invoke("hello, world!").content)
