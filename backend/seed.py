@@ -10,7 +10,7 @@ dotenv.load_dotenv()
 
 MILVUS_URL = os.getenv("MILVUS_URL", "milvus:19530")
 TEXT_EMBEDDING_URL = os.getenv("TEXT_EMBEDDING_URL", "http://text-embedding:2022")
-TEXT_EMNBEDDING_DIM = int(os.getenv("TEXT_EMBEDDING_DIM", "1024"))
+TEXT_EMBEDDING_DIM = int(os.getenv("TEXT_EMBEDDING_DIM", "1024"))
 
 BM25_JSON_PATH = os.getenv("BM25_JSON_PATH", "../data/embedder/sparse.json")
 DATA_PATH = os.getenv("DATA_PATH", "../data/ambik/AmbiK_data.csv")
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     store = MilvusHybridEntityStore(
         uri=MILVUS_URL,
         collection_name=COLLECTION_NAME,
-        dense_dim=TEXT_EMNBEDDING_DIM,
+        dense_dim=TEXT_EMBEDDING_DIM,
         dense_embedder=dense_embedder,
         sparse_embedder=sparse_embedder,
     )
@@ -73,7 +73,7 @@ if __name__ == "__main__":
                 entities.add(entity)
     print(len(entities), "unique entities found.")
     try:
-        asyncio.run(store.insert_entities(entities, batch_size=32))
+        store.insert_entities(entities, batch_size=32)
         print(
             f"Inserted {len(entities)} entities into Milvus collection {COLLECTION_NAME}."
         )

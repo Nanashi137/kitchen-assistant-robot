@@ -13,7 +13,7 @@ class DenseEmbedder:
         self.url = url.rstrip("/")
         self.timeout = timeout
 
-    async def embed(self, texts: Union[str, List[str]]) -> List[List[float]]:
+    def embed(self, texts: Union[str, List[str]]) -> List[List[float]]:
         if isinstance(texts, str):
             inputs = [texts]
         elif isinstance(texts, list) and all(isinstance(t, str) for t in texts):
@@ -21,8 +21,8 @@ class DenseEmbedder:
         else:
             raise TypeError("texts must be a str or List[str]")
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            resp = await client.post(
+        with httpx.Client(timeout=self.timeout) as client:
+            resp = client.post(
                 f"{self.url}/embed",
                 json={"inputs": inputs},
             )

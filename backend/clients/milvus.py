@@ -125,7 +125,7 @@ class MilvusHybridEntityStore:
         )
         self.client.load_collection(self.collection_name)
 
-    async def insert_entities(
+    def insert_entities(
         self, entities: Sequence[str], *, batch_size: int = 256
     ) -> None:
         ents = [e for e in (entities or []) if isinstance(e, str) and e.strip()]
@@ -135,7 +135,7 @@ class MilvusHybridEntityStore:
         for i in range(0, len(ents), batch_size):
             batch = ents[i : i + batch_size]
 
-            dense_vecs = await self.dense.embed(list(batch))
+            dense_vecs = self.dense.embed(list(batch))
             sparse_vecs = self.sparse_embedder.embed(list(batch))
 
             if not isinstance(sparse_vecs, list):
@@ -154,7 +154,7 @@ class MilvusHybridEntityStore:
 
             self.client.insert(collection_name=self.collection_name, data=rows)
 
-    async def search(
+    def search(
         self,
         query: str,
         *,
@@ -175,7 +175,7 @@ class MilvusHybridEntityStore:
 
         w_dense, w_sparse = _normalize_weights(dense_weight, sparse_weight)
 
-        dense_q = (await self.dense.embed(query))[0]  # List[float]
+        dense_q = (self.dense.embed(query))[0]  # List[float]
         sparse_q = _ensure_sparse_keys_int(self.sparse_embedder.embed(query) or {})
 
         dense_params = dense_search_params or {
@@ -252,11 +252,3 @@ class MilvusHybridEntityStore:
             out.append(SearchResultRow(id=hid, entity=str(ent), score=score))
 
         return out
-
-    def insert_entities_sync(
-        self, entities: Sequence[str], *, batch_size: int = 256
-    ) -> None:
-        asyncio.run(self.insert_entities(entities, batch_size=batch_size))
-
-    def search_sync(self, query: str, **kwargs) -> List[SearchResultRow]:
-        return asyncio.run(self.search(query, **kwargs))
