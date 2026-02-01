@@ -2,7 +2,6 @@ from typing import List, Optional
 
 import py_trees
 from langchain_openai import ChatOpenAI
-
 from logger import file_logger
 from prompts import build_answer_prompt
 

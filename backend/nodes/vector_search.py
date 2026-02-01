@@ -2,7 +2,6 @@ import warnings
 from typing import Optional
 
 import py_trees
-
 from clients import MilvusHybridEntityStore
 from logger import file_logger
 

@@ -1,7 +1,6 @@
 import py_trees
-from langchain_openai import ChatOpenAI
-
 from clients import MilvusHybridEntityStore
+from langchain_openai import ChatOpenAI
 from nodes import (AmbiguityDetectorNode, AmbiguousPlaceholderNode, AnswerNode,
                    Blackboard, CheckNotAmbiguousNode, VectorSearchNode)
 
