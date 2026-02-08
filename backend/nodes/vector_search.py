@@ -12,7 +12,7 @@ from .black_board import Blackboard
 class VectorSearchNode(BaseNode):
     """
     Reads:
-      - user_question
+      - standalone_question
     Writes:
       - current_entities (list)
 
@@ -37,7 +37,7 @@ class VectorSearchNode(BaseNode):
             key="turn_history", access=py_trees.common.Access.READ
         )
         self._client.register_key(
-            key="user_question", access=py_trees.common.Access.READ
+            key="standalone_question", access=py_trees.common.Access.READ
         )
         self._client.register_key(
             key="current_related_entities", access=py_trees.common.Access.WRITE
@@ -45,10 +45,12 @@ class VectorSearchNode(BaseNode):
 
     def update(self) -> py_trees.common.Status:
         try:
-            user_question: Optional[str] = getattr(self._client, "user_question", None)
+            standalone_question: Optional[str] = getattr(
+                self._client, "standalone_question", None
+            )
 
-            if not user_question or not str(user_question).strip():
-                raise ValueError("blackboard.user_question is missing/empty")
+            if not standalone_question or not str(standalone_question).strip():
+                raise ValueError("blackboard.standalone_question is missing/empty")
 
             # Use search_sync which handles async internally with asyncio.run()
             # Suppress RuntimeWarning about coroutines - search_sync properly handles async
@@ -59,7 +61,7 @@ class VectorSearchNode(BaseNode):
                     category=RuntimeWarning,
                 )
                 search_results = self._vecdb.search(
-                    query=str(user_question),
+                    query=str(standalone_question),
                     top_k=5,
                     dense_weight=0.4,
                     sparse_weight=0.6,

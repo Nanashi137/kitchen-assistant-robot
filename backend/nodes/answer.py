@@ -12,7 +12,7 @@ from .black_board import Blackboard
 class AnswerNode(BaseNode):
     """
     Reads:
-      - user_question
+      - standalone_question (uses this instead of user_question)
       - current_related_entities
       - turn_history (optional)
     Writes:
@@ -39,7 +39,7 @@ class AnswerNode(BaseNode):
             key="turn_history", access=py_trees.common.Access.READ
         )
         self._client.register_key(
-            key="user_question", access=py_trees.common.Access.READ
+            key="standalone_question", access=py_trees.common.Access.READ
         )
         self._client.register_key(
             key="current_related_entities", access=py_trees.common.Access.READ
@@ -48,14 +48,16 @@ class AnswerNode(BaseNode):
 
     def update(self) -> py_trees.common.Status:
         try:
-            user_question: Optional[str] = getattr(self._client, "user_question", None)
+            standalone_question: Optional[str] = getattr(
+                self._client, "standalone_question", None
+            )
             turn_history = getattr(self._client, "turn_history", None) or []
             related_entities = (
                 getattr(self._client, "current_related_entities", None) or []
             )
 
-            if not user_question or not str(user_question).strip():
-                raise ValueError("blackboard.user_question is missing/empty")
+            if not standalone_question or not str(standalone_question).strip():
+                raise ValueError("blackboard.standalone_question is missing/empty")
 
             # Convert related_entities to list of strings
             if related_entities and isinstance(related_entities, list):
@@ -64,7 +66,7 @@ class AnswerNode(BaseNode):
                 entity_list = []
 
             prompt = build_answer_prompt(
-                user_question=str(user_question),
+                user_question=str(standalone_question),
                 related_entities=entity_list,
                 turn_history=list(turn_history) if turn_history else None,
                 max_history_lines=self._max_history_lines,
@@ -78,7 +80,7 @@ class AnswerNode(BaseNode):
             # Store the answer in blackboard
             self._client.answer = response
             file_logger.info(
-                f"AnswerNode: Generated answer for question: {user_question[:50]}..."
+                f"AnswerNode: Generated answer for question: {standalone_question[:50]}..."
             )
 
             return py_trees.common.Status.SUCCESS

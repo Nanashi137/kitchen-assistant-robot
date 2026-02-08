@@ -12,15 +12,14 @@ from .black_board import Blackboard
 class AmbiguityDetectorNode(BaseNode):
     """
     Reads:
-      - user_question
+      - standalone_question
       - turn_history
     Writes:
       - is_ambiguous (bool)
 
     Return:
-      - FAILURE if ambiguous
-      - SUCCESS if clear
-      - FAILURE on errors (safe default)
+      - SUCCESS after setting is_ambiguous.
+      - FAILURE only on errors.
     """
 
     def __init__(
@@ -39,7 +38,7 @@ class AmbiguityDetectorNode(BaseNode):
             key="turn_history", access=py_trees.common.Access.READ
         )
         self._client.register_key(
-            key="user_question", access=py_trees.common.Access.READ
+            key="standalone_question", access=py_trees.common.Access.READ
         )
         self._client.register_key(
             key="is_ambiguous", access=py_trees.common.Access.WRITE
@@ -47,24 +46,28 @@ class AmbiguityDetectorNode(BaseNode):
 
     def update(self) -> py_trees.common.Status:
         try:
-            user_question: Optional[str] = getattr(self._client, "user_question", None)
+            standalone_question: Optional[str] = getattr(
+                self._client, "standalone_question", None
+            )
             turn_history = getattr(self._client, "turn_history", None) or []
 
-            if not user_question or not str(user_question).strip():
-                raise ValueError("blackboard.user_question is missing/empty")
+            if not standalone_question or not str(standalone_question).strip():
+                raise ValueError("blackboard.standalone_question is missing/empty")
 
             prompt = build_ambiguity_prompt(
-                user_question=str(user_question),
+                user_question=str(standalone_question),
                 turn_history=list(turn_history),
                 max_lines=self._max_history_lines,
             )
 
-            response = self._llm.invoke(prompt).content.strip().upper()
+            raw = self._llm.invoke(prompt).content.strip()
+            # Use first line/token only so trailing explanation does not affect routing
+            response = raw.split("\n")[0].strip().upper() if raw else ""
 
             if "AMBIGUOUS" in response:
                 self._client.is_ambiguous = True
                 file_logger.info("AmbiguityDetector: Question is ambiguous")
-                return py_trees.common.Status.FAILURE
+                return py_trees.common.Status.SUCCESS
 
             if "CLEAR" in response:
                 self._client.is_ambiguous = False
