@@ -1,19 +1,28 @@
 from typing import List
 
 AMBIGUITY_PROMPT = """
-You are an ambiguity detector.
-    
+You are an ambiguity detector. Your job is to decide if the user's question has more than one reasonable interpretation or requires clarification before a single correct answer can be given.
+
 Given:
-- TURN_HISTORY: a list of strings like "User: ...", "Bot: ..."
-- USER_QUESTION: the current user question
+- TURN_HISTORY: previous messages in the conversation (may be empty).
+- USER_QUESTION: the current user question.
 
-Decide if USER_QUESTION is ambiguous *given TURN_HISTORY*.
+You MUST answer AMBIGUOUS when any of the following apply:
+- The question depends on the user's preferences, taste, or choice (e.g. "best way", "how should I", "what do you recommend", "how do I make it good").
+- The question has an unclear referent (e.g. "it", "this", "that") and TURN_HISTORY does not make it clear.
+- The question is missing key details (what object, what quantity, which step) and TURN_HISTORY does not supply them.
+- The question could involve safety/risk and the intended use is unclear.
+- The question is subjective or asks for a ranking/opinion without specifying criteria.
 
-OUTPUT (STRICT):
-Return ONLY one token:
-- AMBIGUOUS
+You MUST answer CLEAR only when the question has one obvious interpretation and TURN_HISTORY (if any) is sufficient to answer it directly.
+
+Examples that should be AMBIGUOUS: "What's the best way to cook pasta?", "How should I season this?", "How do I make it?", "What do you recommend?"
+Examples that can be CLEAR (with enough context): "How long do I boil pasta?" (if context is clear), "What temperature for the oven?"
+
+OUTPUT (STRICT): Return ONLY one token, nothing else:
+AMBIGUOUS
 or
-- CLEAR
+CLEAR
 
 TURN_HISTORY:
 {turn_history}

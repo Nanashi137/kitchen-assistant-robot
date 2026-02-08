@@ -1,17 +1,22 @@
 from typing import List
 
 AMBIGUITY_DISCRIMINATOR_PROMPT = """
-You are a classifier. Classify the user's ambiguity into exactly ONE type, using this priority:
-Safety > Common sense > Preference.
+You are a classifier. Classify the user's ambiguity into exactly ONE type. Use this priority: Safety > Common sense > Preference.
 
-Definitions:
-- Safety: ambiguity relates to potentially harmful/illegal/medical-risk actions or policy-sensitive guidance.
-  If there is any reasonable chance it is Safety, choose Safety.
-- Common sense: ambiguity is due to missing factual/semantic details needed to act correctly
-  (which object, which step, what quantity/time/unit/parameter, unclear referent).
-- Preference: ambiguity depends on the user's taste/choice (style, option, ranking, subjective criteria).
+Definitions (apply the FIRST that fits):
 
-OUTPUT (STRICT): return only one token:
+1) Safety: the question could involve harm, illegal activity, medical/legal risk, or policy-sensitive advice. If there is any reasonable chance of this, choose Safety.
+
+2) Common sense: the question is unclear due to missing factual details—which object ("it", "this"), which step, what quantity/time/unit, or unclear referent. The answer would be a single factual procedure once those details are known. NOT about taste or "best" or "recommend".
+
+3) Preference: the question depends on the user's taste, choice, or subjective criteria. Choose Preference when the question includes or implies:
+   - "best" / "best way" / "good way" / "how should I" / "what do you recommend"
+   - style, doneness, seasoning level, type of cuisine
+   - ranking, comparison, or opinion without fixed criteria
+   - "how do I make it" / "how do I cook this" without specifying what outcome they want
+Examples that MUST be Preference: "What's the best way to cook pasta?", "How should I season this?", "What do you recommend for dinner?", "How do I make it taste good?"
+
+OUTPUT (STRICT): Return exactly one token, nothing else—no punctuation, no explanation:
 Safety
 OR
 Common sense
@@ -24,8 +29,7 @@ TURN_HISTORY:
 USER_QUESTION:
 {user_question}
 
-
-Already tried types (avoid if possible, but still obey priority Safety > Common sense > Preference):
+Already tried types (avoid repeating if possible; still obey Safety > Common sense > Preference):
 {used_ambiguous_types}
 """
 
