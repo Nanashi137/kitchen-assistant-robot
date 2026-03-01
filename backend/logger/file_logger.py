@@ -2,7 +2,9 @@ import logging
 import os
 
 
-def get_logger(name: str = "app", log_file: str = "logger/app.log") -> logging.Logger:
+def get_logger(
+    name: str = "app", log_file: str = "artifacts/app.log"
+) -> logging.Logger:
     # Ensure log directory exists
     os.makedirs(os.path.dirname(log_file) or ".", exist_ok=True)
 
