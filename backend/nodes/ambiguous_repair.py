@@ -105,6 +105,7 @@ class AmbiguousRepairNode(BaseNode):
             file_logger.info(
                 f"AmbiguousRepairNode: produced repair for type {ambiguous_type!r}"
             )
+            self._log_trace(py_trees.common.Status.SUCCESS)
             return py_trees.common.Status.SUCCESS
 
         except Exception as e:
@@ -116,4 +117,5 @@ class AmbiguousRepairNode(BaseNode):
             )
             self._client.repaired_response = fallback
             self._client.answer = fallback
+            self._log_trace(py_trees.common.Status.FAILURE)
             return py_trees.common.Status.FAILURE

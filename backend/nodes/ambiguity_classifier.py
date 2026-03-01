@@ -110,10 +110,12 @@ class AmbiguityClassifierNode(BaseNode):
             file_logger.info(
                 f"AmbiguityClassifierNode: classified type = {classified!r}"
             )
+            self._log_trace(py_trees.common.Status.SUCCESS)
             return py_trees.common.Status.SUCCESS
 
         except Exception as e:
             error_msg = f"{type(e).__name__}: {e}"
             file_logger.error(f"AmbiguityClassifierNode error: {error_msg}")
             self._client.current_ambiguous_type = "Common sense"  # fallback
+            self._log_trace(py_trees.common.Status.FAILURE)
             return py_trees.common.Status.FAILURE

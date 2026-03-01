@@ -74,10 +74,12 @@ class VectorSearchNode(BaseNode):
             file_logger.info(
                 f"VectorSearchNode: Found {len(related_entities)} related entities"
             )
+            self._log_trace(py_trees.common.Status.SUCCESS)
             return py_trees.common.Status.SUCCESS
 
         except Exception as e:
             error_msg = f"{type(e).__name__}: {e}"
             file_logger.error(f"VectorSearchNode error: {error_msg}")
             self._client.current_related_entities = []  # safe fallback
+            self._log_trace(py_trees.common.Status.FAILURE)
             return py_trees.common.Status.FAILURE

@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import py_trees
 
@@ -47,6 +47,13 @@ class Blackboard:
 
         # Answer node keys
         self._client.register_key(key="answer", access=py_trees.common.Access.WRITE)
+
+        # Conversation / persistence
+        self._client.register_key(
+            key="conversation_id", access=py_trees.common.Access.WRITE
+        )
+        self._client.register_key(key="user_id", access=py_trees.common.Access.WRITE)
+        self._client.register_key(key="bot_trace", access=py_trees.common.Access.WRITE)
 
     @property
     def answer(self) -> Optional[str]:
@@ -107,6 +114,41 @@ class Blackboard:
     def raw_client(self) -> py_trees.blackboard.Client:
         return self._client
 
+    @property
+    def conversation_id(self) -> Optional[str]:
+        val = getattr(self._client, "conversation_id", None)
+        return str(val) if val is not None else None
+
+    @conversation_id.setter
+    def conversation_id(self, value: Optional[str]) -> None:
+        self._client.conversation_id = value
+
+    @property
+    def user_id(self) -> Optional[str]:
+        val = getattr(self._client, "user_id", None)
+        return str(val) if val is not None else None
+
+    @user_id.setter
+    def user_id(self, value: Optional[str]) -> None:
+        self._client.user_id = value
+
+    def append_bot_trace(self, node_name: str, status: str) -> None:
+        """Append a node log entry for bot_trace (tree path)."""
+        try:
+            trace = list(getattr(self._client, "bot_trace", None) or [])
+        except KeyError:
+            trace = []
+        trace.append({"node": node_name, "status": status})
+        self._client.bot_trace = trace
+
+    def get_bot_trace(self) -> List[dict]:
+        """Return current bot_trace list (for saving to DB)."""
+        try:
+            t = getattr(self._client, "bot_trace", None) or []
+            return list(t) if isinstance(t, list) else []
+        except KeyError:
+            return []
+
     def clear_for_new_question(self) -> None:
         """Reset blackboard state for a new top-level question (e.g. after showing answer or starting fresh)."""
         self._client.user_question = None
@@ -115,6 +157,7 @@ class Blackboard:
         self._client.is_ambiguous = None
         self._client.current_related_entities = []
         self._client.answer = None
+        self._client.bot_trace = []
         try:
             self._client.used_ambiguous_types = []
         except KeyError:

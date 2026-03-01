@@ -3,8 +3,8 @@ from clients import MilvusHybridEntityStore
 from langchain_openai import ChatOpenAI
 from nodes import (AmbiguityClassifierNode, AmbiguityDetectorNode,
                    AmbiguousRepairNode, AnswerNode, Blackboard,
-                   CheckNotAmbiguousNode, StandaloneQuestionNode,
-                   VectorSearchNode)
+                   CheckNotAmbiguousNode, LoadHistoryNode, SaveMessageNode,
+                   StandaloneQuestionNode, VectorSearchNode)
 
 
 def build_tree(
@@ -13,10 +13,18 @@ def build_tree(
     vecdb: MilvusHybridEntityStore,
 ) -> py_trees.trees.BehaviourTree:
 
-    # Root sequence: standalone question first, then ambiguity detection
+    # Root sequence: load history, standalone question, ambiguity, path, save
     root = py_trees.composites.Sequence(name="Root", memory=True)
 
-    # Step 1: Form standalone question (all downstream nodes use this)
+    # Step 1: Load previous messages for conversation (sets turn_history)
+    load_history = LoadHistoryNode(
+        name="LoadHistory",
+        bb=bb,
+        top_k=20,
+    )
+    root.add_child(load_history)
+
+    # Step 2: Form standalone question (all downstream nodes use this)
     standalone_question_node = StandaloneQuestionNode(
         name="StandaloneQuestion",
         bb=bb,
@@ -99,7 +107,10 @@ def build_tree(
     path_selector.add_child(clear_path)
     path_selector.add_child(ambiguous_path)
 
-    # Add selector to root
     root.add_child(path_selector)
+
+    # Step 5: Save user + assistant messages to DB (with bot_trace)
+    save_message = SaveMessageNode(name="SaveMessage", bb=bb)
+    root.add_child(save_message)
 
     return py_trees.trees.BehaviourTree(root)

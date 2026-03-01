@@ -67,11 +67,13 @@ class AmbiguityDetectorNode(BaseNode):
             if "AMBIGUOUS" in response:
                 self._client.is_ambiguous = True
                 file_logger.info("AmbiguityDetector: Question is ambiguous")
+                self._log_trace(py_trees.common.Status.SUCCESS)
                 return py_trees.common.Status.SUCCESS
 
             if "CLEAR" in response:
                 self._client.is_ambiguous = False
                 file_logger.info("AmbiguityDetector: Question is clear")
+                self._log_trace(py_trees.common.Status.SUCCESS)
                 return py_trees.common.Status.SUCCESS
 
             raise ValueError(f"LLM returned unexpected output: {response[:80]!r}")
@@ -80,4 +82,5 @@ class AmbiguityDetectorNode(BaseNode):
             self._client.is_ambiguous = True  # safe fallback
             error_msg = f"{type(e).__name__}: {e}"
             file_logger.error(f"AmbiguityDetector error: {error_msg}")
+            self._log_trace(py_trees.common.Status.FAILURE)
             return py_trees.common.Status.FAILURE

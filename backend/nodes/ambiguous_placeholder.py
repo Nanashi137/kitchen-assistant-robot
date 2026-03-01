@@ -47,5 +47,5 @@ class AmbiguousPlaceholderNode(BaseNode):
         file_logger.info(
             f"AmbiguousPlaceholderNode: Generated placeholder response for ambiguous question"
         )
-
+        self._log_trace(py_trees.common.Status.SUCCESS)
         return py_trees.common.Status.SUCCESS

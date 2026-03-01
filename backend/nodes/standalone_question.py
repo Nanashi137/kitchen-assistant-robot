@@ -67,6 +67,7 @@ class StandaloneQuestionNode(BaseNode):
             file_logger.info(
                 f"StandaloneQuestionNode: formed standalone question: {standalone}"
             )
+            self._log_trace(py_trees.common.Status.SUCCESS)
             return py_trees.common.Status.SUCCESS
 
         except Exception as e:
@@ -74,4 +75,5 @@ class StandaloneQuestionNode(BaseNode):
             file_logger.error(f"StandaloneQuestionNode error: {error_msg}")
             user_question = getattr(self._client, "user_question", None) or ""
             self._client.standalone_question = str(user_question).strip()
+            self._log_trace(py_trees.common.Status.FAILURE)
             return py_trees.common.Status.FAILURE

@@ -35,10 +35,12 @@ class CheckNotAmbiguousNode(BaseNode):
 
         # If ambiguous flag is not set, treat as ambiguous (safe default)
         if is_ambiguous is None:
+            self._log_trace(py_trees.common.Status.FAILURE)
             return py_trees.common.Status.FAILURE
 
         # Return SUCCESS if not ambiguous, FAILURE if ambiguous
         if is_ambiguous:
+            self._log_trace(py_trees.common.Status.FAILURE)
             return py_trees.common.Status.FAILURE
-        else:
-            return py_trees.common.Status.SUCCESS
+        self._log_trace(py_trees.common.Status.SUCCESS)
+        return py_trees.common.Status.SUCCESS

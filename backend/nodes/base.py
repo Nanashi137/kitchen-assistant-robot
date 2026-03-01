@@ -16,3 +16,8 @@ class BaseNode(py_trees.behaviour.Behaviour):
 
     def terminate(self, new_status: py_trees.common.Status) -> None:
         pass
+
+    def _log_trace(self, status: py_trees.common.Status) -> None:
+        """Append this node's result to bot_trace for DB persistence."""
+        status_str = status.name if hasattr(status, "name") else str(status)
+        self.bb.append_bot_trace(self.name, status_str)
