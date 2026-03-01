@@ -1,4 +1,6 @@
 .env
-data/*
-!data/.gitkeep
+data/
+!data/volumes/.gitkeep
 __pycache__/
+*.log
+**/artifacts/**
