@@ -3,8 +3,8 @@ from clients import MilvusHybridEntityStore
 from langchain_openai import ChatOpenAI
 from nodes import (AmbiguityClassifierNode, AmbiguityDetectorNode,
                    AmbiguousRepairNode, AnswerNode, Blackboard,
-                   CheckNotAmbiguousNode, PostRepairRouterNode,
-                   StandaloneQuestionNode, VectorSearchNode)
+                   CheckNotAmbiguousNode, StandaloneQuestionNode,
+                   VectorSearchNode)
 
 
 def build_tree(
@@ -94,12 +94,6 @@ def build_tree(
         max_history_lines=10,
     )
     ambiguous_path.add_child(ambiguous_repair)
-    post_repair_router = PostRepairRouterNode(
-        name="PostRepairRouter",
-        bb=bb,
-        max_preference_turns=3,
-    )
-    ambiguous_path.add_child(post_repair_router)
 
     # Add both paths to selector (clear path first, then ambiguous)
     path_selector.add_child(clear_path)

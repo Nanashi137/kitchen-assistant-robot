@@ -48,17 +48,6 @@ class Blackboard:
         # Answer node keys
         self._client.register_key(key="answer", access=py_trees.common.Access.WRITE)
 
-        # Await-user keys (post-repair router)
-        self._client.register_key(
-            key="awaiting_user_response", access=py_trees.common.Access.WRITE
-        )
-        self._client.register_key(
-            key="preference_turn_count", access=py_trees.common.Access.WRITE
-        )
-        self._client.register_key(
-            key="max_preference_turns", access=py_trees.common.Access.WRITE
-        )
-
     @property
     def answer(self) -> Optional[str]:
         return getattr(self._client, "answer", None)
@@ -118,30 +107,6 @@ class Blackboard:
     def raw_client(self) -> py_trees.blackboard.Client:
         return self._client
 
-    @property
-    def awaiting_user_response(self) -> bool:
-        return bool(getattr(self._client, "awaiting_user_response", False))
-
-    @awaiting_user_response.setter
-    def awaiting_user_response(self, value: bool) -> None:
-        self._client.awaiting_user_response = value
-
-    @property
-    def preference_turn_count(self) -> int:
-        return int(getattr(self._client, "preference_turn_count", 0) or 0)
-
-    @preference_turn_count.setter
-    def preference_turn_count(self, value: int) -> None:
-        self._client.preference_turn_count = value
-
-    @property
-    def max_preference_turns(self) -> int:
-        return int(getattr(self._client, "max_preference_turns", 0) or 0)
-
-    @max_preference_turns.setter
-    def max_preference_turns(self, value: int) -> None:
-        self._client.max_preference_turns = value
-
     def clear_for_new_question(self) -> None:
         """Reset blackboard state for a new top-level question (e.g. after showing answer or starting fresh)."""
         self._client.user_question = None
@@ -150,8 +115,6 @@ class Blackboard:
         self._client.is_ambiguous = None
         self._client.current_related_entities = []
         self._client.answer = None
-        self._client.awaiting_user_response = False
-        self._client.preference_turn_count = 0
         try:
             self._client.used_ambiguous_types = []
         except KeyError:

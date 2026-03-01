@@ -5,7 +5,6 @@ from .ambiguous_repair import AmbiguousRepairNode
 from .answer import AnswerNode
 from .black_board import Blackboard
 from .check_not_ambiguous import CheckNotAmbiguousNode
-from .post_repair_router import PostRepairRouterNode
 from .standalone_question import StandaloneQuestionNode
 from .vector_search import VectorSearchNode
 
@@ -17,7 +16,6 @@ __all__ = [
     "AnswerNode",
     "Blackboard",
     "CheckNotAmbiguousNode",
-    "PostRepairRouterNode",
     "StandaloneQuestionNode",
     "VectorSearchNode",
 ]
