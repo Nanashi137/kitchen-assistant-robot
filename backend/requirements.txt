@@ -8,3 +8,9 @@ pymilvus==2.6.6
 langchain_openai==1.1.7
 py_trees==2.4.0
 graphviz==0.21
+psycopg2-binary==2.9.10
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.17
