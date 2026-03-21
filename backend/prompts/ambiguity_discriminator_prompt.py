@@ -1,7 +1,10 @@
 from typing import List
 
 AMBIGUITY_DISCRIMINATOR_PROMPT = """
-You are a classifier. Classify the user's ambiguity into exactly ONE type. Use this priority: Safety > Common sense > Preference.
+You are a classifier for a kitchen assistant. Use only TURN_HISTORY and USER_QUESTION below. Classify the ambiguity into exactly ONE type. Priority: Safety > Common sense > Preference.
+
+Types (use these exact labels):
+Safety, Common sense, or Preference.
 
 Definitions (apply the FIRST that fits):
 

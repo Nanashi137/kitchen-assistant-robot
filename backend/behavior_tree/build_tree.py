@@ -1,17 +1,32 @@
+from typing import Optional
+
 import py_trees
 from clients import MilvusHybridEntityStore
 from langchain_openai import ChatOpenAI
 from nodes import (AmbiguityClassifierNode, AmbiguityDetectorNode,
-                   AmbiguousRepairNode, AnswerNode, Blackboard,
+                   AmbiguousRepairNode, Blackboard,
                    CheckNotAmbiguousNode, LoadHistoryNode, SaveMessageNode,
                    StandaloneQuestionNode, VectorSearchNode)
+from nodes.action_executor import ActionExecutor
+from nodes.perform_action_node import PerformActionNode
 
 
 def build_tree(
     bb: Blackboard,
     llm: ChatOpenAI,
     vecdb: MilvusHybridEntityStore,
+    *,
+    action_executor: Optional[ActionExecutor] = None,
 ) -> py_trees.trees.BehaviourTree:
+    """
+    Build the main behaviour tree.
+
+    Clear path (not ambiguous): PerformActionNode — no LLM answer; uses pluggable
+    `action_executor` (default: plain text "I performed the {user_request}").
+    Swap `action_executor` for Gazebo/simulation later.
+
+    Ambiguous path: optional vector search + classifier + repair (LLM).
+    """
 
     # Root sequence: load history, standalone question, ambiguity, path, save
     root = py_trees.composites.Sequence(name="Root", memory=True)
@@ -45,7 +60,7 @@ def build_tree(
     # Step 3: Selector (Fallback) - choose between clear path and ambiguous path
     path_selector = py_trees.composites.Selector(name="PathSelector", memory=False)
 
-    # Clear path: if not ambiguous, search and answer
+    # Clear path: if not ambiguous, perform action (template or custom executor)
     clear_path = py_trees.composites.Sequence(name="ClearPath", memory=True)
 
     # Check that question is not ambiguous
@@ -55,23 +70,12 @@ def build_tree(
     )
     clear_path.add_child(check_not_ambiguous)
 
-    # Vector search for related entities
-    vector_search = VectorSearchNode(
-        name="VectorSearch",
+    perform_action = PerformActionNode(
+        name="PerformAction",
         bb=bb,
-        vecdb=vecdb,
-        max_history_lines=12,
+        executor=action_executor,
     )
-    clear_path.add_child(vector_search)
-
-    # Generate answer using entities
-    answer_node = AnswerNode(
-        name="Answer",
-        bb=bb,
-        llm=llm,
-        max_history_lines=10,
-    )
-    clear_path.add_child(answer_node)
+    clear_path.add_child(perform_action)
 
     # Ambiguous path: optional entities, then classify type, then repair
     ambiguous_path = py_trees.composites.Sequence(name="AmbiguousPath", memory=True)
