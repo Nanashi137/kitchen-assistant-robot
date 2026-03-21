@@ -9,11 +9,18 @@ router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 
 def _conv_to_response(row: dict) -> ConversationResponse:
+    raw = row.get("created_at")
+    if raw is None:
+        created_at = None
+    elif hasattr(raw, "isoformat"):
+        created_at = raw.isoformat()
+    else:
+        created_at = str(raw)
     return ConversationResponse(
         id=row["id"],
         user_id=row["user_id"],
         name=row.get("name"),
-        created_at=str(row["created_at"]) if row.get("created_at") else None,
+        created_at=created_at,
         rating=row.get("rating"),
         rated_at=row.get("rated_at"),
     )
