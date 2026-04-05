@@ -38,7 +38,7 @@ class PlainMessageActionExecutor:
     def __init__(self, template: str | None = None) -> None:
         self.template = template or os.getenv(
             "ACTION_MESSAGE_TEMPLATE",
-            "I performed the {user_request}",
+            "I performed the task, what's next?",
         )
 
     def __call__(self, client: object) -> str:
