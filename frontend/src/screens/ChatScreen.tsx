@@ -18,11 +18,28 @@ function formatConversationLabel(createdAt: string | null | undefined): string {
   }
 }
 
+/** Backend bot_trace entry: explainable { step, status } or legacy { node, status } */
+type BotTraceEntry =
+  | { step: string; status?: string }
+  | { node: string; status?: string }
+
 interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
   rating?: number | null
+  bot_trace?: BotTraceEntry[] | null
+}
+
+function formatTraceLines(trace: BotTraceEntry[] | null | undefined): string {
+  if (!trace || !Array.isArray(trace) || trace.length === 0) return ''
+  return trace
+    .map((t) => {
+      if ('step' in t && t.step) return t.step
+      if ('node' in t && t.node) return t.node
+      return JSON.stringify(t)
+    })
+    .join('\n')
 }
 
 interface ChatScreenProps {
@@ -66,6 +83,8 @@ export function ChatScreen({ apiBaseUrl, token, tokenType, onLogout }: ChatScree
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [conversationRating, setConversationRating] = useState<number | null>(null)
+  /** Assistant message id whose reasoning trace is shown in the bottom-left panel */
+  const [traceForMessageId, setTraceForMessageId] = useState<string | null>(null)
 
   useEffect(() => {
     void loadConversations()
@@ -314,10 +333,37 @@ export function ChatScreen({ apiBaseUrl, token, tokenType, onLogout }: ChatScree
                 {messages.map((message) => (
                   <div
                     key={message.id}
+                    role={message.role === 'assistant' ? 'button' : undefined}
+                    tabIndex={message.role === 'assistant' ? 0 : undefined}
                     className={
                       message.role === 'user'
                         ? 'chat-message chat-message-user'
-                        : 'chat-message chat-message-assistant'
+                        : `chat-message chat-message-assistant${traceForMessageId === message.id ? ' chat-message-assistant--trace-active' : ''}`
+                    }
+                    onClick={
+                      message.role === 'assistant'
+                        ? () =>
+                            setTraceForMessageId((prev) =>
+                              prev === message.id ? null : message.id,
+                            )
+                        : undefined
+                    }
+                    onKeyDown={
+                      message.role === 'assistant'
+                        ? (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              setTraceForMessageId((prev) =>
+                                prev === message.id ? null : message.id,
+                              )
+                            }
+                          }
+                        : undefined
+                    }
+                    title={
+                      message.role === 'assistant'
+                        ? 'Click to show reasoning trace'
+                        : undefined
                     }
                   >
                     <div className="chat-message-meta">
@@ -325,10 +371,16 @@ export function ChatScreen({ apiBaseUrl, token, tokenType, onLogout }: ChatScree
                         {message.role === 'user' ? 'You' : 'Assistant'}
                       </span>
                       {message.role === 'assistant' && (
-                        <RatingStars
-                          value={message.rating}
-                          onChange={(rating) => handleRateMessage(message.id, rating)}
-                        />
+                        <>
+                          {message.bot_trace && message.bot_trace.length > 0 && (
+                            <span className="chat-trace-hint" aria-hidden>
+                            </span>
+                          )}
+                          <RatingStars
+                            value={message.rating}
+                            onChange={(rating) => handleRateMessage(message.id, rating)}
+                          />
+                        </>
                       )}
                     </div>
                     <p className="chat-message-content">{message.content}</p>
@@ -379,6 +431,32 @@ export function ChatScreen({ apiBaseUrl, token, tokenType, onLogout }: ChatScree
             </p>
           )}
         </main>
+
+        {selectedConversationId && traceForMessageId && (
+          <div className="chat-trace-panel" role="region" aria-label="Reasoning trace">
+            <div className="chat-trace-panel-header">
+              <span>Reasoning trace</span>
+              <button
+                type="button"
+                className="chat-trace-close"
+                onClick={() => setTraceForMessageId(null)}
+                aria-label="Close trace"
+              >
+                ×
+              </button>
+            </div>
+            {(() => {
+              const traced = messages.find((m) => m.id === traceForMessageId)
+              const bt = traced?.bot_trace
+              if (!bt || bt.length === 0) {
+                return <p className="chat-trace-empty">No trace stored for this reply.</p>
+              }
+              return (
+                <pre className="chat-trace-pre">{formatTraceLines(bt)}</pre>
+              )
+            })()}
+          </div>
+        )}
 
         <aside className="chat-meta">
           <h2>Conversation rating</h2>
