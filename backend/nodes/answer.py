@@ -12,7 +12,7 @@ from .black_board import Blackboard
 class AnswerNode(BaseNode):
     """
     Reads:
-      - standalone_question (uses this instead of user_question)
+      - standalone_question (pass-through copy of user request)
       - current_related_entities
       - turn_history (optional)
     Writes:
@@ -66,7 +66,7 @@ class AnswerNode(BaseNode):
                 entity_list = []
 
             prompt = build_answer_prompt(
-                user_question=str(standalone_question),
+                user_request=str(standalone_question),
                 related_entities=entity_list,
                 turn_history=list(turn_history) if turn_history else None,
                 max_history_lines=self._max_history_lines,
@@ -80,7 +80,7 @@ class AnswerNode(BaseNode):
             # Store the answer in blackboard
             self._client.answer = response
             file_logger.info(
-                f"AnswerNode: Generated answer for question: {standalone_question[:50]}..."
+                f"AnswerNode: Generated answer for request: {standalone_question[:50]}..."
             )
             self._log_trace(py_trees.common.Status.SUCCESS)
             return py_trees.common.Status.SUCCESS

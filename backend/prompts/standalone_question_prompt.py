@@ -1,66 +1,76 @@
 from typing import List, Optional
 
-STANDALONE_QUESTION_PROMPT = """
-You are a helpful assistant that rewrites a user's message into a SINGLE standalone question.
+STANDALONE_REQUEST_PROMPT = """
+You rewrite the user's current message into ONE **standalone request**—a single clear instruction of what they want done (or what they need), using conversation context.
 
 Given:
-- USER_QUESTION: the current user question/message
-- TURN_HISTORY: previous conversation turns (user + assistant). This may include the referenced subject, constraints, preferences, and clarifications.
+- USER_REQUEST: the user's current message (may be a fragment, short reply, or question)
+- TURN_HISTORY: prior turns (user + assistant). Use only to resolve references and merge missing details.
 
 Goal:
-Rewrite USER_QUESTION into a standalone question that can be understood with ZERO additional context.
+Produce **one line**: a **standalone request** that can be understood with **no other context**. This is **not** an answer and **not** a chat reply—only the consolidated request text downstream modules will use.
+
+Form (important — avoid confusing the model):
+- **Default to imperative / task-style**: e.g. "Take the whisk and small bowl from the cabinet", "Beat two eggs in the small bowl until combined", "Stir-fry chicken thighs and broccoli for 5 minutes for a spicy dish."
+- **Do NOT force a question** unless the user is genuinely asking for information (e.g. "Can I substitute baking soda for baking powder in chocolate chip cookies at a 1:1 ratio?"). If they are giving commands or tasks, keep them as **requests/instructions**, not "How do I…?" unless that was their literal ask.
+- If the user asked a real question, you may output it as a clear standalone sentence (still one line).
 
 Rules:
-1. Use TURN_HISTORY only to resolve references and fill in missing details (e.g., pronouns like "it/that/they", ellipsis, "the second one", "same as before").
-2. Preserve the user's intent, scope, and constraints from the conversation (dietary restrictions, serving size, tools available, time limits, etc.).
-3. Do NOT add new assumptions or new constraints that were not stated. If a crucial detail is missing and cannot be inferred from TURN_HISTORY, keep it generic (do not invent specifics).
-4. Keep it concise. Output exactly ONE question.
-5. Do NOT answer the question. Do NOT include analysis, notes, or multiple options.
+1. Use TURN_HISTORY only to resolve "it/that/this", ellipsis, prior choices, and to merge short follow-ups into the full task.
+2. If USER_REQUEST is a short answer to the assistant's last message, merge it with the ongoing task from earlier turns.
+3. Preserve intent, constraints, and scope; do not invent details not supported by USER_REQUEST + TURN_HISTORY.
+4. Keep it concise: exactly **one** line.
+5. Do NOT answer the user. Do NOT add analysis, bullets, or multiple options.
 
 Few-shot examples:
 
-Example 1
+Example 1 (task → standalone request, not a question)
 TURN_HISTORY:
-User: I have chicken thighs and broccoli. I want something spicy.
-Assistant: Do you want a stir-fry or an oven bake?
-User: Stir-fry.
-USER_QUESTION: How long should I cook it?
-STANDALONE: How long should I stir-fry chicken thighs and broccoli to make a spicy dish?
+User: I need eggs beaten for the cake.
+Assistant: Which bowl should I use?
+User: The small glass one.
+USER_REQUEST: Use the small glass one.
+STANDALONE: Beat eggs for the cake in the small glass bowl.
 
-Example 2
+Example 2 (real question stays a question)
 TURN_HISTORY:
-User: I’m baking cookies. I only have baking soda, not baking powder.
+User: I'm baking cookies. I only have baking soda, not baking powder.
 Assistant: What type of cookies are you making?
 User: Chocolate chip.
-USER_QUESTION: Can I swap it 1:1?
+USER_REQUEST: Can I swap it 1:1?
 STANDALONE: Can I substitute baking soda for baking powder in chocolate chip cookies at a 1:1 ratio?
+
+Example 3 (imperative user message stays imperative)
+TURN_HISTORY: (empty)
+USER_REQUEST: Get the whisk from the drawer and the bowl from the cabinet.
+STANDALONE: Get the whisk from the drawer and the bowl from the cabinet.
 
 Now do the task.
 
 TURN_HISTORY:
 {turn_history}
 
-USER_QUESTION:
-{user_question}
+USER_REQUEST:
+{user_request}
 
 Output:
-Return only the standalone question text.
+Return only the standalone request text (one line, no quotes or labels).
 """.strip()
 
 
 def build_standalone_question_prompt(
-    user_question: str,
+    user_request: str,
     turn_history: Optional[List[str]] = None,
     max_history_lines: int = 12,
 ) -> str:
-    # Format turn history
+    """Build prompt for a single standalone **request** line (blackboard key remains ``standalone_question``)."""
     if turn_history:
         history = (turn_history or [])[-max_history_lines:]
         history_text = "\n".join(history).strip() if history else "(empty)"
     else:
         history_text = "(empty)"
 
-    return STANDALONE_QUESTION_PROMPT.format(
+    return STANDALONE_REQUEST_PROMPT.format(
         turn_history=history_text,
-        user_question=user_question.strip(),
+        user_request=user_request.strip(),
     )

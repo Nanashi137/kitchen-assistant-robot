@@ -18,6 +18,11 @@ class BaseNode(py_trees.behaviour.Behaviour):
         pass
 
     def _log_trace(self, status: py_trees.common.Status) -> None:
-        """Append this node's result to bot_trace for DB persistence."""
+        """Legacy: append node name. Prefer _log_trace_step with a human label."""
         status_str = status.name if hasattr(status, "name") else str(status)
         self.bb.append_bot_trace(self.name, status_str)
+
+    def _log_trace_step(self, status: py_trees.common.Status, step: str) -> None:
+        """Append an explainable step for the assistant message trace (UI)."""
+        ok = status == py_trees.common.Status.SUCCESS
+        self.bb.append_bot_trace_step(step, "ok" if ok else "fail")

@@ -1,23 +1,22 @@
 from typing import List
 
 AMBIGUITY_DISCRIMINATOR_PROMPT = """
-You are a classifier for a kitchen assistant. Use only TURN_HISTORY and USER_QUESTION below. Classify the ambiguity into exactly ONE type. Priority: Safety > Common sense > Preference.
+You are a classifier for a kitchen assistant. Use only TURN_HISTORY and USER_REQUEST below. USER_REQUEST is the **current user request** for this turn. Classify the ambiguity into exactly ONE type. Priority: Safety > Common sense > Preference.
 
 Types (use these exact labels):
 Safety, Common sense, or Preference.
 
 Definitions (apply the FIRST that fits):
 
-1) Safety: the question could involve harm, illegal activity, medical/legal risk, or policy-sensitive advice. If there is any reasonable chance of this, choose Safety.
+1) Safety: the request could involve harm, illegal activity, medical/legal risk, or policy-sensitive advice. If there is any reasonable chance of this, choose Safety.
 
-2) Common sense: the question is unclear due to missing factual details—which object ("it", "this"), which step, what quantity/time/unit, or unclear referent. The answer would be a single factual procedure once those details are known. NOT about taste or "best" or "recommend".
+2) Common sense: missing factual details—which object ("it"), which step, quantity/time/unit, OR concrete procedural cooking steps (beat, mix, chop) with named items—even if technique could vary slightly. Recipe-style requests ("beat eggs until combined", "fry for 3 minutes") are Common sense unless they explicitly ask for recommendations or "best".
 
-3) Preference: the question depends on the user's taste, choice, or subjective criteria. Choose Preference when the question includes or implies:
-   - "best" / "best way" / "good way" / "how should I" / "what do you recommend"
-   - style, doneness, seasoning level, type of cuisine
-   - ranking, comparison, or opinion without fixed criteria
-   - "how do I make it" / "how do I cook this" without specifying what outcome they want
-Examples that MUST be Preference: "What's the best way to cook pasta?", "How should I season this?", "What do you recommend for dinner?", "How do I make it taste good?"
+3) Preference: depends on taste, style choice, or open recommendations. Choose Preference when the user asks for the "best" way, open-ended seasoning/meal ideas, rankings, or subjective picks WITHOUT enough constraint in TURN_HISTORY+USER_REQUEST to pick defaults.
+Do NOT choose Preference for: straightforward task steps the user already specified (e.g. beat N eggs in named bowl until combined); short answers that complete a prior clarification (merge context mentally).
+
+Examples (Preference): "What's the best pasta recipe?", "What should I make for dinner?", "How do I make it taste amazing?" (no prior narrowing).
+Examples (Common sense): "Beat two eggs in the small bowl until smooth", "Dice the onion fine", user follow-ups listing tools/times after one clarification round.
 
 OUTPUT (STRICT): Return exactly one token, nothing else—no punctuation, no explanation:
 Safety
@@ -29,8 +28,8 @@ Preference
 TURN_HISTORY:
 {turn_history}
 
-USER_QUESTION:
-{user_question}
+USER_REQUEST:
+{user_request}
 
 Already tried types (avoid repeating if possible; still obey Safety > Common sense > Preference):
 {used_ambiguous_types}
@@ -38,7 +37,7 @@ Already tried types (avoid repeating if possible; still obey Safety > Common sen
 
 
 def build_ambiguity_discriminator_prompt(
-    user_question: str,
+    user_request: str,
     turn_history: List[str],
     max_lines: int = 10,
     used_ambiguous_types: List[str] = [],
@@ -47,6 +46,6 @@ def build_ambiguity_discriminator_prompt(
     history_text = "\n".join(history) if history else "(empty)"
     return AMBIGUITY_DISCRIMINATOR_PROMPT.format(
         turn_history=history_text,
-        user_question=user_question.strip(),
+        user_request=user_request.strip(),
         used_ambiguous_types=", ".join(used_ambiguous_types),
     )

@@ -13,7 +13,7 @@ class Blackboard:
     def __init__(self, name: str = "bt"):
         self._client = py_trees.blackboard.Client(name=name)
 
-        # Standalone question (rewritten from user_question + turn_history)
+        # Standalone request line from StandaloneQuestionNode (LLM rewrite of user message + history)
         self._client.register_key(
             key="standalone_question", access=py_trees.common.Access.WRITE
         )
@@ -133,12 +133,21 @@ class Blackboard:
         self._client.user_id = value
 
     def append_bot_trace(self, node_name: str, status: str) -> None:
-        """Append a node log entry for bot_trace (tree path)."""
+        """Legacy: technical node name. Prefer append_bot_trace_step for explainable UI traces."""
         try:
             trace = list(getattr(self._client, "bot_trace", None) or [])
         except KeyError:
             trace = []
         trace.append({"node": node_name, "status": status})
+        self._client.bot_trace = trace
+
+    def append_bot_trace_step(self, step: str, status: str = "ok") -> None:
+        """Append a human-readable reasoning step for explainable traces."""
+        try:
+            trace = list(getattr(self._client, "bot_trace", None) or [])
+        except KeyError:
+            trace = []
+        trace.append({"step": step.strip(), "status": status})
         self._client.bot_trace = trace
 
     def get_bot_trace(self) -> List[dict]:

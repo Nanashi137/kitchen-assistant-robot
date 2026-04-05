@@ -11,8 +11,9 @@ from .black_board import Blackboard
 
 class StandaloneQuestionNode(BaseNode):
     """
-    Rewrites user_question into a standalone question using turn_history for context.
-    Runs first; all downstream nodes should use standalone_question instead of user_question.
+    Rewrites USER_REQUEST into a **standalone request** (one line) using the LLM + turn_history.
+
+    Downstream still reads ``standalone_question`` on the blackboard (name unchanged).
 
     Reads:
       - user_question
@@ -21,8 +22,8 @@ class StandaloneQuestionNode(BaseNode):
       - standalone_question (str)
 
     Return:
-      - SUCCESS when standalone_question is set (from LLM or fallback to user_question)
-      - FAILURE on errors (safe default; sets standalone_question = user_question)
+      - SUCCESS when standalone_question is set from the model (or fallback)
+      - FAILURE on errors (sets standalone_question = user_question)
     """
 
     def __init__(
@@ -55,7 +56,7 @@ class StandaloneQuestionNode(BaseNode):
                 raise ValueError("blackboard.user_question is missing/empty")
 
             prompt = build_standalone_question_prompt(
-                user_question=str(user_question),
+                user_request=str(user_question),
                 turn_history=list(turn_history),
                 max_history_lines=self._max_history_lines,
             )
@@ -65,9 +66,8 @@ class StandaloneQuestionNode(BaseNode):
             self._client.standalone_question = standalone
 
             file_logger.info(
-                f"StandaloneQuestionNode: formed standalone question: {standalone}"
+                f"StandaloneQuestionNode: standalone request: {standalone[:80]!r}"
             )
-            self._log_trace(py_trees.common.Status.SUCCESS)
             return py_trees.common.Status.SUCCESS
 
         except Exception as e:
@@ -75,5 +75,4 @@ class StandaloneQuestionNode(BaseNode):
             file_logger.error(f"StandaloneQuestionNode error: {error_msg}")
             user_question = getattr(self._client, "user_question", None) or ""
             self._client.standalone_question = str(user_question).strip()
-            self._log_trace(py_trees.common.Status.FAILURE)
             return py_trees.common.Status.FAILURE

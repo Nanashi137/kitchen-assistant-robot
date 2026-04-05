@@ -25,39 +25,50 @@ def build_tree(
     `action_executor` (default: plain text "I performed the {user_request}").
     Swap `action_executor` for Gazebo/simulation later.
 
-    Ambiguous path: optional vector search + classifier + repair (LLM).
+    Flow: vector search runs once after standalone request, before ambiguity detection,
+    so retrieved entities inform CLEAR vs AMBIGUOUS; the same ``current_related_entities``
+    list is reused on both branches (classifier + repair on ambiguous path).
     """
 
-    # Root sequence: load history, standalone question, ambiguity, path, save
+    # Root sequence: load history, standalone request, vector search, ambiguity, path, save
     root = py_trees.composites.Sequence(name="Root", memory=True)
 
     # Step 1: Load previous messages for conversation (sets turn_history)
     load_history = LoadHistoryNode(
         name="LoadHistory",
         bb=bb,
-        top_k=20,
+        top_k=30,
     )
     root.add_child(load_history)
 
-    # Step 2: Form standalone question (all downstream nodes use this)
+    # Step 2: LLM — one standalone request line (blackboard key: standalone_question)
     standalone_question_node = StandaloneQuestionNode(
         name="StandaloneQuestion",
         bb=bb,
         llm=llm,
-        max_history_lines=12,
+        max_history_lines=20,
     )
     root.add_child(standalone_question_node)
 
-    # Step 2: Detect ambiguity (uses standalone_question)
+    # Step 3: Vector search once — populates current_related_entities for ambiguity + both routes
+    vector_search = VectorSearchNode(
+        name="VectorSearch",
+        bb=bb,
+        vecdb=vecdb,
+        max_history_lines=16,
+    )
+    root.add_child(vector_search)
+
+    # Step 4: Detect ambiguity (uses standalone_question + turn_history + related entities)
     ambiguity_detector = AmbiguityDetectorNode(
         name="AmbiguityDetector",
         bb=bb,
         llm=llm,
-        max_history_lines=10,
+        max_history_lines=16,
     )
     root.add_child(ambiguity_detector)
 
-    # Step 3: Selector (Fallback) - choose between clear path and ambiguous path
+    # Step 5: Selector (Fallback) — clear path vs ambiguous path
     path_selector = py_trees.composites.Selector(name="PathSelector", memory=False)
 
     # Clear path: if not ambiguous, perform action (template or custom executor)
@@ -77,33 +88,20 @@ def build_tree(
     )
     clear_path.add_child(perform_action)
 
-    # Ambiguous path: optional entities, then classify type, then repair
+    # Ambiguous path: entities already on blackboard; classify type, then repair
     ambiguous_path = py_trees.composites.Sequence(name="AmbiguousPath", memory=True)
-    # Optional: try to get related entities for repair
-    optional_entities = py_trees.composites.Selector(
-        name="OptionalEntities", memory=False
-    )
-    ambiguous_vector_search = VectorSearchNode(
-        name="AmbiguousVectorSearch",
-        bb=bb,
-        vecdb=vecdb,
-        max_history_lines=12,
-    )
-    optional_entities.add_child(ambiguous_vector_search)
-    optional_entities.add_child(py_trees.behaviours.Success(name="NoEntities"))
-    ambiguous_path.add_child(optional_entities)
     ambiguous_classifier = AmbiguityClassifierNode(
         name="AmbiguityClassifier",
         bb=bb,
         llm=llm,
-        max_history_lines=10,
+        max_history_lines=16,
     )
     ambiguous_path.add_child(ambiguous_classifier)
     ambiguous_repair = AmbiguousRepairNode(
         name="AmbiguousRepair",
         bb=bb,
         llm=llm,
-        max_history_lines=10,
+        max_history_lines=16,
     )
     ambiguous_path.add_child(ambiguous_repair)
 
@@ -113,7 +111,7 @@ def build_tree(
 
     root.add_child(path_selector)
 
-    # Step 5: Save user + assistant messages to DB (with bot_trace)
+    # Step 6: Save user + assistant messages to DB (with bot_trace)
     save_message = SaveMessageNode(name="SaveMessage", bb=bb)
     root.add_child(save_message)
 

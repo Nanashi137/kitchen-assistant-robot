@@ -9,11 +9,15 @@ from prompts import (build_common_sense_repair_prompt,
 
 from .base import BaseNode
 from .black_board import Blackboard
+from .bot_trace_format import constructing_response_line
 
 
 class AmbiguousRepairNode(BaseNode):
     """
-    Produces a repair response based on the classified ambiguous type.
+    Produces a **clarifying** assistant message for the ambiguous path (ask the user back).
+
+    Prompts use USER_REQUEST (from standalone_question, same as user request). They are instructed not to
+    infer a single interpretation and proceed as if the robot would act on it.
 
     Reads:
       - standalone_question
@@ -78,21 +82,21 @@ class AmbiguousRepairNode(BaseNode):
 
             if "safety" in t_lower:
                 prompt = build_safety_repair_prompt(
-                    user_question=str(standalone_question),
+                    user_request=str(standalone_question),
                     turn_history=list(turn_history),
                     related_entities=related_list,
                     max_lines=self._max_history_lines,
                 )
             elif "preference" in t_lower:
                 prompt = build_preference_repair_prompt(
-                    user_question=str(standalone_question),
+                    user_request=str(standalone_question),
                     turn_history=list(turn_history),
                     related_entities=related_list,
                     max_lines=self._max_history_lines,
                 )
             else:
                 prompt = build_common_sense_repair_prompt(
-                    user_question=str(standalone_question),
+                    user_request=str(standalone_question),
                     turn_history=list(turn_history),
                     related_entities=related_list,
                     max_lines=self._max_history_lines,
@@ -105,7 +109,7 @@ class AmbiguousRepairNode(BaseNode):
             file_logger.info(
                 f"AmbiguousRepairNode: produced repair for type {ambiguous_type!r}"
             )
-            self._log_trace(py_trees.common.Status.SUCCESS)
+            self.bb.append_bot_trace_step(constructing_response_line(), "ok")
             return py_trees.common.Status.SUCCESS
 
         except Exception as e:
@@ -117,5 +121,5 @@ class AmbiguousRepairNode(BaseNode):
             )
             self._client.repaired_response = fallback
             self._client.answer = fallback
-            self._log_trace(py_trees.common.Status.FAILURE)
+            self.bb.append_bot_trace_step(constructing_response_line(), "fail")
             return py_trees.common.Status.FAILURE

@@ -7,6 +7,7 @@ from prompts import build_ambiguity_discriminator_prompt
 
 from .base import BaseNode
 from .black_board import Blackboard
+from .bot_trace_format import determine_type_line
 
 # Canonical types returned by the discriminator prompt (priority: Safety > Common sense > Preference)
 AMBIGUITY_TYPES = ["Safety", "Common sense", "Preference"]
@@ -14,7 +15,7 @@ AMBIGUITY_TYPES = ["Safety", "Common sense", "Preference"]
 
 class AmbiguityClassifierNode(BaseNode):
     """
-    Classifies the type of ambiguity using an LLM.
+    Classifies the type of ambiguity using an LLM. Uses **standalone_question** (pass-through copy of user request).
 
     Reads:
       - standalone_question
@@ -76,7 +77,7 @@ class AmbiguityClassifierNode(BaseNode):
                 raise ValueError("blackboard.standalone_question is missing/empty")
 
             prompt = build_ambiguity_discriminator_prompt(
-                user_question=str(standalone_question),
+                user_request=str(standalone_question),
                 turn_history=list(turn_history),
                 max_lines=self._max_history_lines,
                 used_ambiguous_types=used_list,
@@ -110,12 +111,14 @@ class AmbiguityClassifierNode(BaseNode):
             file_logger.info(
                 f"AmbiguityClassifierNode: classified type = {classified!r}"
             )
-            self._log_trace(py_trees.common.Status.SUCCESS)
+            self.bb.append_bot_trace_step(determine_type_line(classified), "ok")
             return py_trees.common.Status.SUCCESS
 
         except Exception as e:
             error_msg = f"{type(e).__name__}: {e}"
             file_logger.error(f"AmbiguityClassifierNode error: {error_msg}")
             self._client.current_ambiguous_type = "Common sense"  # fallback
-            self._log_trace(py_trees.common.Status.FAILURE)
+            self.bb.append_bot_trace_step(
+                determine_type_line("Common sense"), "fail"
+            )
             return py_trees.common.Status.FAILURE

@@ -49,7 +49,6 @@ class SaveMessageNode(BaseNode):
                 file_logger.warning(
                     "SaveMessageNode: conversation_id missing, skip save"
                 )
-                self._log_trace(py_trees.common.Status.SUCCESS)
                 return py_trees.common.Status.SUCCESS
 
             user_question = getattr(self._client, "user_question", None) or ""
@@ -68,7 +67,6 @@ class SaveMessageNode(BaseNode):
                 content=user_question.strip() or "(empty)",
             )
             trace_for_db = list(bot_trace) if bot_trace else []
-            trace_for_db.append({"node": self.name, "status": "SUCCESS"})
             insert_message(
                 conversation_id=str(conversation_id).strip(),
                 role="assistant",
@@ -76,12 +74,10 @@ class SaveMessageNode(BaseNode):
                 ambiguous=ambiguous,
                 bot_trace=trace_for_db,
             )
-            self._log_trace(py_trees.common.Status.SUCCESS)
             file_logger.info(
                 f"SaveMessageNode: saved user + assistant for conversation {conversation_id}"
             )
             return py_trees.common.Status.SUCCESS
         except Exception as e:
             file_logger.error(f"SaveMessageNode error: {type(e).__name__}: {e}")
-            self._log_trace(py_trees.common.Status.FAILURE)
             return py_trees.common.Status.FAILURE

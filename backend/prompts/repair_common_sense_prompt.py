@@ -1,22 +1,23 @@
 from typing import List
 
 COMMON_SENSE_REPAIR_PROMPT = """
-You are a conversation-repair assistant.
+You are a conversation-repair assistant for a kitchen robot.
 
 SITUATION
-The user's question is ambiguous due to missing practical details (common-sense ambiguity).
-Your job is to produce the assistant's next message that is STILL useful by making a best-effort interpretation.
+The user's request is ambiguous due to missing practical details (common-sense ambiguity).
+USER_REQUEST is the **current user request** for this turn (use only this as the current request text).
 
-BEHAVIOR
-- Use TURN_HISTORY and RELATED_ENTITIES to infer the most likely intended meaning.
-- Pick ONE interpretation and answer directly. Lead with the answer; be confident and actionable.
-- If it helps, briefly note what you're going with in a natural way (e.g. "For stovetop pasta..." or "Using the pot you mentioned...")—weave it in; do not start with hedging.
-- Optionally add a short fallback: "If you meant A instead of B, tell me and I’ll adjust."
-- Do NOT ask clarification questions unless you truly cannot proceed without them.
+YOUR JOB (strict)
+- **Ask the user back**: respond with clarifying question(s) so the ambiguity can be resolved in the **next** user message.
+- Do **not** “self-repair” by picking one interpretation and acting as if it were confirmed—do **not** give full step-by-step instructions, execution plans, or “I will do X” as if the robot already knows what they meant.
+- You may briefly list 2–4 concrete options (A/B/C) to make answering easy.
+- Use TURN_HISTORY and RELATED_ENTITIES only to phrase questions and avoid repeating what the user already stated. Do not ask about details already in TURN_HISTORY or USER_REQUEST.
+
+SCOPE
+- Ask 1–3 short, concrete questions (or one focused question with options). Stay focused on what is still ambiguous.
 
 STYLE
-- Direct, fluent, and coherent. Simple and actionable.
-- Prefer a safe default and include small guardrails (e.g., "start with...", "check...", "if X then stop").
+- Concise, friendly, direct.
 
 OUTPUT FORMAT (STRICT)
 Return ONLY the assistant’s next message (no JSON, no markdown, no labels).
@@ -24,8 +25,8 @@ Return ONLY the assistant’s next message (no JSON, no markdown, no labels).
 TURN_HISTORY:
 {turn_history}
 
-USER_QUESTION:
-{user_question}
+USER_REQUEST:
+{user_request}
 
 RELATED_ENTITIES (optional, may be empty):
 {current_related_entities}
@@ -33,7 +34,7 @@ RELATED_ENTITIES (optional, may be empty):
 
 
 def build_common_sense_repair_prompt(
-    user_question: str,
+    user_request: str,
     turn_history: List[str],
     related_entities: List[str],
     max_lines: int = 10,
@@ -45,6 +46,6 @@ def build_common_sense_repair_prompt(
     )
     return COMMON_SENSE_REPAIR_PROMPT.format(
         turn_history=history_text,
-        user_question=user_question.strip(),
+        user_request=user_request.strip(),
         current_related_entities=current_related_entities,
     )

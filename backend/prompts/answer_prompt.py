@@ -1,10 +1,10 @@
 from typing import List, Optional
 
 ANSWER_PROMPT = """
-You are a helpful kitchen assistant. Your role is to answer user questions about kitchen-related topics using the provided related entities and conversation history.
+You are a helpful kitchen assistant. Your role is to respond to the user's **request** about kitchen-related topics using the provided related entities and conversation history.
 
 Given:
-- USER_QUESTION: the current user question
+- USER_REQUEST: the current user request (instruction or question)
 - RELATED_ENTITIES: relevant kitchen entities (ingredients, tools, techniques) from the knowledge base
 - TURN_HISTORY: previous conversation turns (including any preference or clarification the user gave)
 
@@ -17,7 +17,7 @@ Instructions:
 Tone and style:
 - Answer directly and confidently. Lead with the useful content.
 - Be fluent and coherent; write as a knowledgeable assistant who has the context.
-- Do not start with hedging (e.g. "I assume...", "I think you mean..."). Integrate context into a direct, helpful answer.
+- Do not start with hedging (e.g., "I assume...", "I think you mean..."). Integrate context into a direct, helpful answer.
 
 Output:
 Provide the answer only—no prefixes like "Answer:" or "Response:", and no hedging lead-ins. Just the answer.
@@ -28,13 +28,13 @@ TURN_HISTORY:
 RELATED_ENTITIES:
 {related_entities}
 
-USER_QUESTION:
-{user_question}
+USER_REQUEST:
+{user_request}
 """
 
 
 def build_answer_prompt(
-    user_question: str,
+    user_request: str,
     related_entities: List[str],
     turn_history: Optional[List[str]] = None,
     max_history_lines: int = 10,
@@ -55,5 +55,5 @@ def build_answer_prompt(
     return ANSWER_PROMPT.format(
         turn_history=history_text,
         related_entities=entities_text,
-        user_question=user_question.strip(),
+        user_request=user_request.strip(),
     )

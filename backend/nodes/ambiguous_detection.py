@@ -11,9 +11,13 @@ from .black_board import Blackboard
 
 class AmbiguityDetectorNode(BaseNode):
     """
+    Ambiguity detection uses **standalone_question**, **turn_history**, and **current_related_entities**
+    (from vector search run before this node).
+
     Reads:
       - standalone_question
       - turn_history
+      - current_related_entities (optional; from prior VectorSearchNode)
     Writes:
       - is_ambiguous (bool)
 
@@ -41,6 +45,9 @@ class AmbiguityDetectorNode(BaseNode):
             key="standalone_question", access=py_trees.common.Access.READ
         )
         self._client.register_key(
+            key="current_related_entities", access=py_trees.common.Access.READ
+        )
+        self._client.register_key(
             key="is_ambiguous", access=py_trees.common.Access.WRITE
         )
 
@@ -50,14 +57,17 @@ class AmbiguityDetectorNode(BaseNode):
                 self._client, "standalone_question", None
             )
             turn_history = getattr(self._client, "turn_history", None) or []
+            related = getattr(self._client, "current_related_entities", None) or []
+            related_list: list = [str(x) for x in related] if isinstance(related, list) else []
 
             if not standalone_question or not str(standalone_question).strip():
                 raise ValueError("blackboard.standalone_question is missing/empty")
 
             prompt = build_ambiguity_prompt(
-                user_question=str(standalone_question),
+                user_request=str(standalone_question),
                 turn_history=list(turn_history),
                 max_lines=self._max_history_lines,
+                related_entities=related_list,
             )
 
             raw = self._llm.invoke(prompt).content.strip()
@@ -67,13 +77,19 @@ class AmbiguityDetectorNode(BaseNode):
             if "AMBIGUOUS" in response:
                 self._client.is_ambiguous = True
                 file_logger.info("AmbiguityDetector: Question is ambiguous")
-                self._log_trace(py_trees.common.Status.SUCCESS)
+                self._log_trace_step(
+                    py_trees.common.Status.SUCCESS,
+                    "Ambiguous: True",
+                )
                 return py_trees.common.Status.SUCCESS
 
             if "CLEAR" in response:
                 self._client.is_ambiguous = False
                 file_logger.info("AmbiguityDetector: Question is clear")
-                self._log_trace(py_trees.common.Status.SUCCESS)
+                self._log_trace_step(
+                    py_trees.common.Status.SUCCESS,
+                    "Ambiguous: False",
+                )
                 return py_trees.common.Status.SUCCESS
 
             raise ValueError(f"LLM returned unexpected output: {response[:80]!r}")
@@ -82,5 +98,8 @@ class AmbiguityDetectorNode(BaseNode):
             self._client.is_ambiguous = True  # safe fallback
             error_msg = f"{type(e).__name__}: {e}"
             file_logger.error(f"AmbiguityDetector error: {error_msg}")
-            self._log_trace(py_trees.common.Status.FAILURE)
+            self._log_trace_step(
+                py_trees.common.Status.FAILURE,
+                "Ambiguous: True",
+            )
             return py_trees.common.Status.FAILURE

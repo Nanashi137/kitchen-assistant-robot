@@ -44,7 +44,6 @@ class LoadHistoryNode(BaseNode):
                 self._client, "conversation_id", None
             )
             if not conversation_id or not str(conversation_id).strip():
-                self._log_trace(py_trees.common.Status.SUCCESS)
                 return py_trees.common.Status.SUCCESS
 
             messages = load_messages(
@@ -56,9 +55,7 @@ class LoadHistoryNode(BaseNode):
             file_logger.info(
                 f"LoadHistoryNode: loaded {len(turn_history)} turns for conversation {conversation_id}"
             )
-            self._log_trace(py_trees.common.Status.SUCCESS)
             return py_trees.common.Status.SUCCESS
         except Exception as e:
             file_logger.error(f"LoadHistoryNode error: {type(e).__name__}: {e}")
-            self._log_trace(py_trees.common.Status.FAILURE)
             return py_trees.common.Status.FAILURE
