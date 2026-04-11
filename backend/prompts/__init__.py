@@ -6,7 +6,8 @@ from .repair_common_sense_prompt import build_common_sense_repair_prompt
 from .repair_preference_prompt import build_preference_repair_prompt
 from .repair_safety_prompt import build_safety_repair_prompt
 from .standalone_question_prompt import build_standalone_question_prompt
-
+from .potential_entities_predict_prompt import build_potential_entities_prompt
+from .action_prompt import build_entity_actions_prompt
 __all__ = [
     "build_ambiguity_prompt",
     "build_ambiguity_discriminator_prompt",
@@ -15,4 +16,6 @@ __all__ = [
     "build_preference_repair_prompt",
     "build_safety_repair_prompt",
     "build_standalone_question_prompt",
+    "build_potential_entities_prompt",
+    "build_entity_actions_prompt",
 ]
