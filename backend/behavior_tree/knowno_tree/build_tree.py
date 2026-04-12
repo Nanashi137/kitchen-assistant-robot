@@ -4,9 +4,9 @@ import py_trees
 from clients import MilvusHybridEntityStore
 from langchain_openai import ChatOpenAI
 from nodes_knowno import (KnownoAmbiguityResponseNode, KnownoAmbiguousClassifierNode,
-                   Blackboard, EntitiesPredictorNode, EntityActionGeneratorNode,
-                   CheckNotAmbiguousNode, LoadHistoryNode, SaveMessageNode,
-                   StandaloneQuestionNode, VectorSearchNode)
+                   Blackboard, EntitiesPredictorNode, EntityResolveNode,
+                   EntityActionGeneratorNode, CheckNotAmbiguousNode, LoadHistoryNode,
+                   SaveMessageNode, StandaloneQuestionNode, VectorSearchNode)
 from nodes_knowno.action_executor import ActionExecutor
 from nodes.perform_action_node import PerformActionNode
 
@@ -25,9 +25,9 @@ def build_tree(
     `action_executor` (default: plain text "I performed the {user_request}").
     Swap `action_executor` for Gazebo/simulation later.
 
-    Flow: vector search runs once after standalone request, before ambiguity detection,
-    so retrieved entities inform CLEAR vs AMBIGUOUS; the same ``current_related_entities``
-    list is reused on both branches (classifier + repair on ambiguous path).
+    Flow: after standalone request, entities are predicted then **resolved** (history +
+    standalone drop already-settled names), then vector search grounds what remains.
+    The same ``current_related_entities`` list is reused for ambiguity + both routes.
     """
 
     # Root sequence: load history, standalone request, vector search, ambiguity, path, save
@@ -57,6 +57,14 @@ def build_tree(
         llm=llm,
     )
     root.add_child(entity_prediction_node)
+
+    entity_resolve_node = EntityResolveNode(
+        name="EntityResolve",
+        bb=bb,
+        llm=llm,
+        max_history_lines=20,
+    )
+    root.add_child(entity_resolve_node)
 
     # Step 3: Vector search once — populates current_related_entities for ambiguity + both routes
     vector_search = VectorSearchNode(
