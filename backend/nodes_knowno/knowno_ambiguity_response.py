@@ -5,8 +5,8 @@ from langchain_openai import ChatOpenAI
 from logger import file_logger
 from prompts.knowno_response_prompt import build_ambiguity_response_prompt
 
-from nodes.base import BaseNode
-from nodes.black_board import Blackboard
+from .base import BaseNode
+from .black_board import Blackboard
 
 
 class KnownoAmbiguityResponseNode(BaseNode):

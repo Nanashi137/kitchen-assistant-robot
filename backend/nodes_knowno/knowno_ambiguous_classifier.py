@@ -5,8 +5,8 @@ from langchain_openai import ChatOpenAI
 from logger import file_logger
 from prompts import build_knowno_ambig_classify_prompt
 
-from nodes.base import BaseNode
-from nodes.black_board import Blackboard
+from .base import BaseNode
+from .black_board import Blackboard
 
 from .llm_json import parse_llm_json_object
 
