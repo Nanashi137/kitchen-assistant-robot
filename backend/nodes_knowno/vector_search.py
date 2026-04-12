@@ -28,10 +28,14 @@ class VectorSearchNode(BaseNode):
         bb: Blackboard,
         vecdb: MilvusHybridEntityStore,
         max_history_lines: int = 12,
+        top_k: int = 5,
+        fallback_to_question: bool = False,
     ):
         super().__init__(name=name, bb=bb)
         self._vecdb = vecdb
         self._max_history_lines = max_history_lines
+        self._top_k = top_k
+        self._fallback_to_question = fallback_to_question
         self._client.register_key(
             key="turn_history", access=py_trees.common.Access.READ
         )
@@ -49,7 +53,7 @@ class VectorSearchNode(BaseNode):
         return await asyncio.to_thread(
             self._vecdb.search,
             query=entity,
-            top_k=5,
+            top_k=1,
             dense_weight=0.4,
             sparse_weight=0.6,
             min_score=0.6,
@@ -112,13 +116,14 @@ class VectorSearchNode(BaseNode):
                 file_logger.info(
                     "VectorSearchNode: Could not ground potential_entities, using safe fallback"
                 )
-                search_results_per_entity = asyncio.run(
-                    self._search_all_entities([standalone_question])
-                )
-
-                self._client.current_related_entities = []
-                self.bb.append_bot_trace_step(searching_entities_line(0), "ok")
-                return py_trees.common.Status.SUCCESS
+                if self._fallback_to_question:
+                    search_results_per_entity = asyncio.run(
+                        self._search_all_entities([standalone_question])
+                    )
+                else:
+                    self._client.current_related_entities = []
+                    self.bb.append_bot_trace_step(searching_entities_line(0), "ok")
+                    return py_trees.common.Status.SUCCESS
 
             related_entities = []
             for entity_query, result in zip(potential_entities, search_results_per_entity):

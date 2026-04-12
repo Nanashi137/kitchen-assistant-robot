@@ -16,6 +16,7 @@ Instructions:
 6. Use the entity names exactly as provided in the input list as JSON keys.
 7. Output must be valid JSON only.
 8. Do not include markdown fences or any extra text.
+9. If the user request **commits to specific items** (names a particular tool, bowl, ingredient, etc.), **omit** JSON keys for other entities that are only **mutually exclusive alternatives** to an unchosen option (e.g. if the request says "balloon whisk", do not include "flat whisk" unless the request still needs both).
 
 Example:
 User request: "boil me 3 eggs"

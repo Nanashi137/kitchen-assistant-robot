@@ -64,7 +64,7 @@ class EntitiesPredictorNode(BaseNode):
 
             self._client.potential_entities = related_entities
             file_logger.info(
-                f"PotentialEntitiesNode: Found {len(related_entities)} potential entities"
+                f"PotentialEntitiesNode: Found {len(related_entities)} potential entities: {related_entities}"
             )
             n = len(related_entities)
             self.bb.append_bot_trace_step(f"Predicting entities: {n} entities predicted", "ok")
