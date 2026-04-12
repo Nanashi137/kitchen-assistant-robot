@@ -2,34 +2,47 @@ import json
 from typing import List, Optional
 
 ENTITY_RESOLVE_PROMPT = """
-You filter a list of **predicted entities** for a kitchen robot. Some items may already be **fully resolved** by the standalone request plus conversation history (user chose a specific tool, container, method, etc.).
+You are a **strict filter** for **predicted_entities**. Wrong output causes the robot to **repeat the same question** — treat errors as unacceptable.
 
 ## INPUT
-- **Standalone request:** one consolidated line for what the user wants now.
-- **Conversation history:** prior user and assistant turns.
-- **Predicted entities:** candidate physical objects/tools/ingredients the pipeline may still need to ground in the database.
+- **Standalone request:** consolidated current task line.
+- **Conversation history:** prior user and assistant turns (read the **last** assistant question and the **latest** user answer carefully).
+- **Predicted entities:** strings from upstream prediction (may still wrongly include rejected alternatives).
 
-## TASK
-Return only entities that are **still unresolved** — i.e. still needed for disambiguation, retrieval, or execution **given** the standalone request and history.
+## MANDATORY RULES (non-negotiable)
 
-**Remove** an entity if:
-- The user (or standalone request) already **committed** to a specific option among alternatives (e.g. chose "balloon whisk" → drop "flat whisk" if it was only the other choice).
-- The entity is **no longer relevant** because the request + history settled that part of the task.
-- The assistant already **confirmed** a single object and the user did not reopen that choice.
+**M1 — OR-choice resolution**  
+If history shows the assistant asked the user to pick **one of several named options** (tools, containers, types, etc.) and the user’s reply **commits to one** (by name, short label, or obvious match):
+- **Remove every other option from that same choice** from your output (e.g. asked "whisk or fork", user said "whisk" → you MUST NOT keep "fork").
+- If nothing from **predicted_entities** is still needed after that commitment, return **{{"potential_entities": []}}**.
 
-**Keep** an entity if:
-- The standalone request or history still leaves that category **open** or **ambiguous**.
-- The entity is still **required** for the next step and is not superseded by a prior choice.
+**M2 — Match standalone request**  
+If the standalone request **names** a specific object/tool, drop predicted entities that **contradict** or **duplicate** an already settled choice (e.g. standalone says "using a whisk" → remove "fork" if present).
 
-## RULES
-1. Output **only** names that refer to entries in **Predicted entities** (match **case-insensitively**; use the exact spelling from Predicted entities in your output).
-2. Preserve the **relative order** of Predicted entities for those you keep.
-3. If every predicted entity is resolved, return an empty list.
-4. Output **valid JSON only**, no markdown fences or extra text.
+**M3 — Substring / synonym OK for matching**  
+User may say "whisk" while predicted list has "balloon whisk" — treat as **resolved** for the whisk-vs-fork style question: keep at most whisk-like entries if still needed for **further** grounding; **never** keep the fork line when user rejected fork.
+
+**M4 — Output hygiene**  
+- Only output names that appear in **predicted_entities** (case-insensitive match; echo **exact spelling** from predicted_entities).
+- Preserve **order** of predicted_entities for kept items.
+- Valid JSON only, no markdown.
+
+## TASK (after M1–M4)
+Return **potential_entities**: the subset of predicted_entities that are **still unresolved** for disambiguation/retrieval **given** history + standalone request.
 
 Output format:
 {{
   "potential_entities": ["entity1", "entity2"]
+}}
+
+## Example
+
+History: Assistant asked "whisk or fork?"; User: "whisk".
+Predicted entities: ["whisk", "fork", "egg"]
+Standalone: "Scramble the eggs using a whisk."
+Correct output (fork and eggs must be removed; all gone):
+{{
+  "potential_entities": []
 }}
 
 ---DATA---
@@ -48,7 +61,7 @@ def build_entity_resolve_prompt(
     standalone_request: str,
     predicted_entities: List[str],
     turn_history: Optional[List[str]] = None,
-    max_history_lines: int = 16,
+    max_history_lines: int = 24,
 ) -> str:
     if turn_history:
         lines = list(turn_history or [])[-max_history_lines:]

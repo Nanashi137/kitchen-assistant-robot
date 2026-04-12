@@ -1,72 +1,75 @@
 from typing import List, Optional
 
 POTENTIAL_ENTITIES_PROMPT = """
-You are given:
-1. a standalone user request
-2. recent conversation history
+You extract **potential_entities**: physical kitchen objects/tools/ingredients that still need grounding for the **current** turn.
 
-Your task is to extract a ranked list of potential physical entities, objects, tools, containers, appliances, ingredients, or manipulable items that may be needed to understand or execute the current request.
+You MUST use **both** CONVERSATION_HISTORY and CURRENT_USER_REQUEST. If you ignore history, the robot will repeat the same clarification — that is a failure.
 
-Use the conversation history to understand which entities were already identified, clarified, selected, or resolved in earlier turns.
-Do NOT repeat previously resolved entities unless they are still necessary for the current request and remain unresolved at this step.
+## MANDATORY RULES (apply before anything else)
 
-Rules:
-1. Prioritize entities that are explicitly mentioned in the current request.
-2. After that, include highly likely implied entities only if they are strongly necessary or commonly required to complete the current request.
-3. Use conversation history to avoid repeating entities that were already resolved, selected, or confirmed in earlier turns.
-4. Only include entities that are still relevant for the current step of the interaction.
-5. Prefer concrete nouns over abstract concepts, actions, or attributes.
-6. Do not include verbs, adjectives, or generic task words unless they clearly refer to a physical entity.
-7. Keep entity names short, lowercase, and singular where natural.
-8. Remove duplicates.
-9. Return at most {topk} entities.
-10. If fewer than {topk} relevant entities exist, return a shorter list.
-11. Output must be valid JSON only.
-12. Do not include markdown fences or any extra text.
+**R1 — Disambiguation already answered (OR / which-one questions)**  
+If CONVERSATION_HISTORY shows the assistant asked the user to choose **between alternatives** (e.g. "whisk or fork", "A or B", "which one", "use X or Y") and the user's **latest** message (or CURRENT_USER_REQUEST) **selects one option**:
+- You MUST **NOT** include any **unchosen** alternative as a potential entity (e.g. user chose whisk → never output "fork").
+- You MUST **NOT** output both alternatives together for that same choice.
+- If the chosen option alone fully satisfies what was being asked, output **{{"potential_entities": []}}** — do not re-list the chosen tool unless a **new** unresolved sub-choice still exists.
 
-Guidance on using history:
-- If an entity was already chosen by the user, do not extract it again unless the current request introduces a new unresolved choice around it.
-- If the current request is only answering a clarification question, extract only the remaining unresolved entities for the current step.
-- If everything needed for the current request is already resolved, return an empty list.
+**R2 — Short reply = answer to last bot question**  
+If CURRENT_USER_REQUEST is a short fragment (one or two words like "whisk", "scramble", "the blue one") and history shows it **answers** the assistant's last question, extract entities **only** for what is **still open after** that answer — often **none**.
+
+**R3 — Standalone request already specifies the tool/object**  
+If CURRENT_USER_REQUEST clearly names the instrument or object (e.g. "scramble eggs using a whisk"), do not add competing tools the user did not ask about.
+
+**R4 — Empty list is valid**  
+When nothing is left to disambiguate or retrieve for this step, return **{{"potential_entities": []}}**.
+
+## General rules (after R1–R4)
+
+1. Prefer entities **explicitly** in CURRENT_USER_REQUEST only if they still need retrieval and are not fully settled by history.
+2. Short, lowercase, singular where natural; no duplicates; at most {topk} items.
+3. Output **valid JSON only** — no markdown, no commentary.
 
 Output format:
 {{
   "potential_entities": ["entity1", "entity2"]
 }}
 
-Example 1:
-Conversation History:
-User: cook the eggs
-Bot: fry, scramble, or boil?
-Current Request:
-boil
+## Examples
+
+Example A — user chose whisk; fork must not appear
+CONVERSATION_HISTORY:
+User: can you cook the eggs
+Assistant: scrambled, fried, or boiled?
+User: scramble
+Assistant: whisk or fork?
+CURRENT_USER_REQUEST:
+whisk
 Output:
 {{
-  "potential_entities": ["pot", "kettle"]
+  "potential_entities": []
 }}
 
-Example 2:
-Conversation History:
+Example B — user chose kettle after pot/kettle question
+CONVERSATION_HISTORY:
 User: cook the eggs
-Bot: fry, scramble, or boil?
+Assistant: fry, scramble, or boil?
 User: boil
-Bot: use kettle or pot?
-Current Request:
+Assistant: kettle or pot?
+CURRENT_USER_REQUEST:
 kettle
 Output:
 {{
   "potential_entities": []
 }}
 
-Example 3:
-Conversation History:
-User: put the leftovers in a bowl
-Bot: use the large mixing bowl or the tiny dipping bowl?
-Current Request:
-large mixing bowl
+Example C — still need container after method chosen (hypothetical)
+CONVERSATION_HISTORY:
+User: scramble the eggs
+Assistant: which bowl?
+CURRENT_USER_REQUEST:
+use the small glass bowl
 Output:
 {{
-  "potential_entities": []
+  "potential_entities": ["small glass bowl"]
 }}
 
 CONVERSATION_HISTORY:
@@ -76,11 +79,12 @@ CURRENT_USER_REQUEST:
 {user_request}
 """
 
+
 def build_potential_entities_prompt(
     user_request: str,
     topk: int = 5,
     turn_history: Optional[List[str]] = None,
-    max_history_lines: int = 10,
+    max_history_lines: int = 24,
 ) -> str:
     if turn_history:
         history = (turn_history or [])[-max_history_lines:]
