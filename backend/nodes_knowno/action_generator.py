@@ -45,7 +45,7 @@ class EntityActionGeneratorNode(BaseNode):
         )
 
         self._client.register_key(
-            key="entity_actions", access=py_trees.common.Access.WRITE
+            key="entity_action", access=py_trees.common.Access.WRITE
         )
 
     def _get_current_related_entities(self) -> List[str]:
@@ -74,8 +74,7 @@ class EntityActionGeneratorNode(BaseNode):
             response = self._llm.invoke(prompt).content.strip()
             parsed = json.loads(response)
 
-            self._client.entity_actions = parsed
-            file_logger.info(determine_type_line("Generated entity actions", parsed))
+            self._client.entity_action = parsed
 
 
             return py_trees.common.Status.SUCCESS

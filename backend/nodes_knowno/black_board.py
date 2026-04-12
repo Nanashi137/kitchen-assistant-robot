@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Dict
 
 import py_trees
 
@@ -45,7 +45,10 @@ class Blackboard:
             key="current_related_entities", access=py_trees.common.Access.WRITE
         )
         self._client.register_key(
-            key="entity_actions", access=py_trees.common.Access.WRITE
+            key="entity_action", access=py_trees.common.Access.WRITE
+        )
+        self._client.register_key(
+            key="viable_objects", access=py_trees.common.Access.WRITE
         )
         self._client.register_key(
             key="repaired_response", access=py_trees.common.Access.WRITE
@@ -126,12 +129,20 @@ class Blackboard:
         self._client.potential_entities = list(value or [])
 
     @property
-    def entity_actions(self) -> List:
-        return list(getattr(self._client, "entity_actions", []) or [])
+    def entity_action(self) -> Dict:
+        return dict(getattr(self._client, "entity_action", {}) or {})
 
-    @entity_actions.setter
-    def entity_actions(self, value: List) -> None:
-        self._client.entity_actions = list(value or [])
+    @entity_action.setter
+    def entity_action(self, value: Dict) -> None:
+        self._client.entity_action = dict(value or [])
+
+    @property
+    def viable_objects(self) -> List[Dict[str, Any]]:
+        return list(getattr(self._client, "viable_objects", []) or [])
+
+    @viable_objects.setter
+    def viable_objects(self, value: List[Dict[str, Any]]) -> None:
+        self._client.viable_objects = list(value or [])
 
     def raw_client(self) -> py_trees.blackboard.Client:
         return self._client
@@ -189,6 +200,7 @@ class Blackboard:
         self._client.current_related_entities = []
         self._client.answer = None
         self._client.bot_trace = []
+        self._client.viable_objects = []
         try:
             self._client.used_ambiguous_types = []
         except KeyError:

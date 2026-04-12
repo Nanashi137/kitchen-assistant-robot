@@ -49,15 +49,17 @@ Evaluate the viable objects selected from Entity-action:
 | 1 viable       | Unambiguous |
 | 2+ viable      | **Ambiguous** |
 
+If the result is **Unambiguous**, set `"ambiguity_type"` to `"None"`.
+
 **viable_objects in output:** collect all viable objects that contribute to ambiguity, as a list of object-action dictionaries.
 
 ### Step 4 — Classify Type (only if Ambiguous)
 
-Inspect the ambiguous viable objects and choose one label (priority: Safety > Common Sense > Preferences):
+Inspect the ambiguous viable objects and choose one label (priority: Safety > Common Sense > Preference):
 
 - **Safety**: Wrong substitution could cause danger (e.g., metal in microwave, flammable near heat). Robot should NOT ask — choose the safe option.
 - **Common Sense**: Resolved by everyday practical knowledge (e.g., large bowl for leftovers, not a tiny dipping bowl). Robot is generally not expected to ask.
-- **Preferences**: Equally valid options; choice is purely subjective (e.g., which chocolate type, which mug color). Robot MUST ask the user.
+- **Preference**: Equally valid options; choice is purely subjective (e.g., which chocolate type, which mug color). Robot MUST ask the user.
 
 ## EXAMPLES
 
@@ -88,14 +90,14 @@ Inspect the ambiguous viable objects and choose one label (priority: Safety > Co
 
 {{"classification": "Ambiguous", "ambiguity_type": "Common Sense", "viable_objects": [{{"large mixing bowl": "container for leftovers"}}, {{"tiny dipping bowl": "container for leftovers"}}]}}
 
-**Example 4: Ambiguous — Preferences**
+**Example 4: Ambiguous — Preference**
 - Query: "Bring me the mug"
 - Entity-action: {{"blue mug": "object to bring to user", "red mug": "object to bring to user", "plate": "object to bring to user"}}
   - Both mugs are relevant and viable
   - The plate is unrelated to "mug"
   - 2 viable → Ambiguous
 
-{{"classification": "Ambiguous", "ambiguity_type": "Preferences", "viable_objects": [{{"blue mug": "object to bring to user"}}, {{"red mug": "object to bring to user"}}]}}
+{{"classification": "Ambiguous", "ambiguity_type": "Preference", "viable_objects": [{{"blue mug": "object to bring to user"}}, {{"red mug": "object to bring to user"}}]}}
 
 **Example 5: Unambiguous — no relevant alternative**
 - Query: "Retrieve the dark chocolate tablet and ceramic bowl"
@@ -114,7 +116,7 @@ Inspect the ambiguous viable objects and choose one label (priority: Safety > Co
   - the bowl is unrelated
   - 3 viable → Ambiguous
 
-{{"classification": "Ambiguous", "ambiguity_type": "Preferences", "viable_objects": [{{"dark chocolate tablet": "ingredient to retrieve"}}, {{"milk chocolate tablet": "ingredient to retrieve"}}, {{"almond milk chocolate tablet": "ingredient to retrieve"}}]}}
+{{"classification": "Ambiguous", "ambiguity_type": "Preference", "viable_objects": [{{"dark chocolate tablet": "ingredient to retrieve"}}, {{"milk chocolate tablet": "ingredient to retrieve"}}, {{"almond milk chocolate tablet": "ingredient to retrieve"}}]}}
 
 **Example 7: Ambiguous — location ignored, object resolved from Entity-action**
 - Query: "Get the chocolate tablet and cream cheese from the refrigerator"
@@ -124,14 +126,15 @@ Inspect the ambiguous viable objects and choose one label (priority: Safety > Co
   - "cream cheese" allows fresh, but expired is not viable due to hygiene
   - overall ambiguous due to chocolate tablet
 
-{{"classification": "Ambiguous", "ambiguity_type": "Preferences", "viable_objects": [{{"dark chocolate tablet": "ingredient to get"}}, {{"milk chocolate tablet": "ingredient to get"}}]}}
+{{"classification": "Ambiguous", "ambiguity_type": "Preference", "viable_objects": [{{"dark chocolate tablet": "ingredient to get"}}, {{"milk chocolate tablet": "ingredient to get"}}]}}
 
 ## OUTPUT ##
 Return ONLY a JSON object with no extra text.
+If the result is **Unambiguous**, set `"ambiguity_type"` to `"None"`.
 
 {{
   "classification": "Ambiguous | Unambiguous",
-  "ambiguity_type": "None | Safety | Common Sense | Preferences",
+  "ambiguity_type": "None | Safety | Common Sense | Preference",
   "viable_objects": [
     {{"object1": "action1"}},
     {{"object2": "action2"}}

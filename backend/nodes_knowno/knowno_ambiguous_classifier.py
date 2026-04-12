@@ -54,7 +54,6 @@ class KnownoAmbiguousClassifierNode(BaseNode):
       - standalone_question
       - turn_history
       - entity_action
-      - current_related_entities
     Writes:
       - is_ambiguous
       - knowno_ambiguity_type
@@ -82,23 +81,19 @@ class KnownoAmbiguousClassifierNode(BaseNode):
             key="entity_action", access=py_trees.common.Access.READ
         )
         self._client.register_key(
-            key="current_related_entities", access=py_trees.common.Access.READ
-        )
-        self._client.register_key(
             key="is_ambiguous", access=py_trees.common.Access.WRITE
         )
         self._client.register_key(
-            key="knowno_ambiguity_type", access=py_trees.common.Access.WRITE
+            key="current_ambiguous_type", access=py_trees.common.Access.WRITE
         )
         self._client.register_key(
-            key="knowno_viable_objects", access=py_trees.common.Access.WRITE
+            key="viable_objects", access=py_trees.common.Access.WRITE
         )
 
     def update(self) -> py_trees.common.Status:
         try:
             sq: Optional[str] = getattr(self._client, "standalone_question", None)
             turn_history = getattr(self._client, "turn_history", None) or []
-            related = getattr(self._client, "current_related_entities", None) or []
             ea_raw = getattr(self._client, "entity_action", None) or {}
             entity_action: Dict[str, str] = (
                 dict(ea_raw) if isinstance(ea_raw, dict) else {}
@@ -107,12 +102,10 @@ class KnownoAmbiguousClassifierNode(BaseNode):
             if not sq or not str(sq).strip():
                 raise ValueError("blackboard.standalone_question is missing/empty")
 
-            top_k = [str(x) for x in related if str(x).strip()]
 
             prompt = build_knowno_ambig_classify_prompt(
                 query=str(sq),
                 entity_action=entity_action,
-                top_k_candidates=top_k,
                 turn_history=list(turn_history),
                 max_history_lines=self._max_history_lines,
             )
@@ -125,8 +118,8 @@ class KnownoAmbiguousClassifierNode(BaseNode):
 
             is_ambiguous = "ambiguous" in classification.lower()
             self._client.is_ambiguous = is_ambiguous
-            self._client.knowno_ambiguity_type = amb_type
-            self._client.knowno_viable_objects = _normalize_viable_objects(
+            self._client.current_ambiguous_type = amb_type
+            self._client.viable_objects = _normalize_viable_objects(
                 viable_raw, entity_action
             )
 
@@ -135,7 +128,7 @@ class KnownoAmbiguousClassifierNode(BaseNode):
                 f"KnownoAmbiguousClassifierNode: {label}, type={amb_type!r}"
             )
             self.bb.append_bot_trace_step(
-                f"Knowno classification: {label} ({amb_type})", "ok"
+                f"Classification: {label} ({amb_type})", "ok"
             )
             return py_trees.common.Status.SUCCESS
 
@@ -143,7 +136,7 @@ class KnownoAmbiguousClassifierNode(BaseNode):
             error_msg = f"{type(e).__name__}: {e}"
             file_logger.error(f"KnownoAmbiguousClassifierNode error: {error_msg}")
             self._client.is_ambiguous = True
-            self._client.knowno_ambiguity_type = "Common Sense"
-            self._client.knowno_viable_objects = []
+            self._client.current_ambiguous_type = "Common Sense"
+            self._client.viable_objects = []
             self.bb.append_bot_trace_step("Knowno classification", "fail")
             return py_trees.common.Status.SUCCESS

@@ -96,18 +96,32 @@ class VectorSearchNode(BaseNode):
                 ]
             )
 
-            sq_text = str(standalone_question).strip()
-            used_entity_queries = bool(potential_entities)
-            search_queries = (
-                potential_entities if potential_entities else [sq_text]
-            )
+            if not potential_entities:
+                file_logger.info(
+                    "VectorSearchNode: No potential_entities found, using safe fallback"
+                )
+                self._client.current_related_entities = []
+                self.bb.append_bot_trace_step(searching_entities_line(0), "ok")
+                return py_trees.common.Status.SUCCESS
 
             search_results_per_entity = asyncio.run(
-                self._search_all_entities(search_queries)
+                self._search_all_entities(potential_entities)
             )
 
+            if not search_results_per_entity:
+                file_logger.info(
+                    "VectorSearchNode: Could not ground potential_entities, using safe fallback"
+                )
+                search_results_per_entity = asyncio.run(
+                    self._search_all_entities([standalone_question])
+                )
+
+                self._client.current_related_entities = []
+                self.bb.append_bot_trace_step(searching_entities_line(0), "ok")
+                return py_trees.common.Status.SUCCESS
+
             related_entities = []
-            for entity_query, result in zip(search_queries, search_results_per_entity):
+            for entity_query, result in zip(potential_entities, search_results_per_entity):
                 if isinstance(result, Exception):
                     file_logger.warning(
                         f"VectorSearchNode: search failed for '{entity_query}': "
@@ -122,28 +136,10 @@ class VectorSearchNode(BaseNode):
 
             related_entities = self._dedupe_keep_order(related_entities)
 
-            if (
-                not related_entities
-                and used_entity_queries
-                and sq_text
-                and sq_text not in search_queries
-            ):
-                file_logger.info(
-                    "VectorSearchNode: empty results from entity queries; "
-                    "fallback search with standalone request"
-                )
-                fallback = asyncio.run(self._search_one_entity(sq_text))
-                if not isinstance(fallback, Exception):
-                    for item in fallback:
-                        entity_name = getattr(item, "entity", None)
-                        if entity_name:
-                            related_entities.append(entity_name)
-                related_entities = self._dedupe_keep_order(related_entities)
-
             self._client.current_related_entities = related_entities
             file_logger.info(
                 f"VectorSearchNode: Found {len(related_entities)} related entities "
-                f"from {len(search_queries)} search queries"
+                f"from {len(potential_entities)} potential entities"
             )
 
             self.bb.append_bot_trace_step(

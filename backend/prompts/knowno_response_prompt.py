@@ -22,11 +22,11 @@ You are a kitchen robot assistant. Generate a short, natural clarification quest
 
 Examples:
 - Query: "Use a knife to cut the tomato"
-  Viable Objects: [{"chef knife": "tool to cut tomato"}, {"paring knife": "tool to cut tomato"}, {"butter knife": "tool to cut tomato"}]
+  Viable Objects: [{{"chef knife": "tool to cut tomato"}}, {{"paring knife": "tool to cut tomato"}}, {{"butter knife": "tool to cut tomato"}}]
   → "To cut the tomato, I see a chef knife, a paring knife, and a butter knife. Which one should I use?"
 
 - Query: "Use the sponge to wipe the counter"
-  Viable Objects: [{"clean sponge": "tool to wipe counter"}, {"dirty sponge": "tool to wipe counter"}]
+  Viable Objects: [{{"clean sponge": "tool to wipe counter"}}, {{"dirty sponge": "tool to wipe counter"}}]
   Ambiguity Type: Safety
   → "I see a clean sponge and a dirty sponge. Which one should I use to wipe the counter? The clean sponge would be safer."
 
@@ -39,7 +39,7 @@ Examples:
 5. Respond in English.
 """
 
-def build_ambiguity_response_prompt(
+def build_knowno_response_prompt(
     query: str,
     ambiguity_type: str,
     viable_objects: List[dict],

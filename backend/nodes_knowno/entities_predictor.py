@@ -54,7 +54,7 @@ class EntitiesPredictorNode(BaseNode):
                 raise ValueError("blackboard.standalone_question is missing/empty")
 
             prompt = build_potential_entities_prompt(
-                question=standalone_question, top_k=self._top_k
+                user_request=standalone_question, topk=self._top_k
             )
 
             response = self._llm.invoke(prompt).content.strip()
@@ -67,14 +67,12 @@ class EntitiesPredictorNode(BaseNode):
                 f"PotentialEntitiesNode: Found {len(related_entities)} potential entities"
             )
             n = len(related_entities)
-            self.bb.append_bot_trace_step(searching_entities_line(n), "ok")
+            self.bb.append_bot_trace_step(f"Predicting entities: {n} entities predicted", "ok")
             return py_trees.common.Status.SUCCESS
 
         except Exception as e:
             error_msg = f"{type(e).__name__}: {e}"
             file_logger.error(f"PotentialEntitiesNode error: {error_msg}")
             self._client.potential_entities = []  # safe fallback; routing continues
-            self.bb.append_bot_trace_step(retrieving_entities_context(), "ok")
-            self.bb.append_bot_trace_step(searching_entities_line(0), "fail")
-            # SUCCESS so root sequence continues to ambiguity + paths (same as old OptionalEntities fallback)
+            self.bb.append_bot_trace_step(f"Predicting entities: 0 entities predicted", "fail")
             return py_trees.common.Status.SUCCESS

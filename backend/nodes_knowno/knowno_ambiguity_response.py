@@ -3,10 +3,10 @@ from typing import List, Optional
 import py_trees
 from langchain_openai import ChatOpenAI
 from logger import file_logger
-from prompts.knowno_response_prompt import build_ambiguity_response_prompt
+from prompts.knowno_response_prompt import build_knowno_response_prompt
 
-from .base import BaseNode
-from .black_board import Blackboard
+from nodes.base import BaseNode
+from nodes.black_board import Blackboard
 
 
 class KnownoAmbiguityResponseNode(BaseNode):
@@ -40,10 +40,10 @@ class KnownoAmbiguityResponseNode(BaseNode):
             key="standalone_question", access=py_trees.common.Access.READ
         )
         self._client.register_key(
-            key="knowno_ambiguity_type", access=py_trees.common.Access.READ
+            key="ambiguity_type", access=py_trees.common.Access.READ
         )
         self._client.register_key(
-            key="knowno_viable_objects", access=py_trees.common.Access.READ
+            key="viable_objects", access=py_trees.common.Access.READ
         )
         self._client.register_key(key="answer", access=py_trees.common.Access.WRITE)
 
@@ -58,7 +58,7 @@ class KnownoAmbiguityResponseNode(BaseNode):
                 raise ValueError("blackboard.standalone_question is missing/empty")
 
             viable_list: List[dict] = list(viable) if isinstance(viable, list) else []
-            prompt = build_ambiguity_response_prompt(
+            prompt = build_knowno_response_prompt(
                 query=str(sq),
                 ambiguity_type=str(amb_type),
                 viable_objects=viable_list,
@@ -68,7 +68,7 @@ class KnownoAmbiguityResponseNode(BaseNode):
             response = self._llm.invoke(prompt).content.strip()
             self._client.answer = response or "Which option should I use?"
             file_logger.info("KnownoAmbiguityResponseNode: generated clarification")
-            self.bb.append_bot_trace_step("Clarification question (Knowno)", "ok")
+            self.bb.append_bot_trace_step("Generated clarification question", "ok")
             return py_trees.common.Status.SUCCESS
 
         except Exception as e:
@@ -76,5 +76,5 @@ class KnownoAmbiguityResponseNode(BaseNode):
                 f"KnownoAmbiguityResponseNode error: {type(e).__name__}: {e}"
             )
             self._client.answer = "Which option should I use?"
-            self.bb.append_bot_trace_step("Clarification question (Knowno)", "fail")
+            self.bb.append_bot_trace_step("Generated clarification question", "fail")
             return py_trees.common.Status.SUCCESS
