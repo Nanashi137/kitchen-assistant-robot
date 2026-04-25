@@ -63,6 +63,10 @@ class EntityActionGeneratorNode(BaseNode):
             )
             current_related_entities = self._get_current_related_entities()
 
+            if not current_related_entities:
+                self._client.entity_action = []
+                return py_trees.common.Status.SUCCESS
+
             if not standalone_question or not str(standalone_question).strip():
                 raise ValueError("blackboard.standalone_question is missing/empty")
 

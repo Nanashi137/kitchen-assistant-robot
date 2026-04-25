@@ -8,13 +8,18 @@ You will receive a user message containing the current query context. Follow the
 
 ## TASK
 
-### Step 0 — Check Conversation History
+### Step 0 — Check Conversation History (objects AND non-object details)
 
-If the Conversation History shows that the robot previously asked the user to clarify which object to use, AND the Current Query contains a direct answer (e.g., naming one or more specific objects, or confirming with "yes"), treat that answer as the user's final selection.
-- Identify ALL selected objects from the user's answer.
-- If every selected object matches an object in Entity-action → return **Unambiguous** with those objects as viable_objects.
-- Do NOT re-evaluate ambiguity on the user's confirmed selection — it is resolved.
-- Only proceed to Step 1 if no such prior clarification exchange is found.
+**0a — Object / OR-choice clarification**  
+If history shows the assistant asked the user to **choose a specific object or tool** among options, AND the Current Query answers that (names the object, short label, or "yes" to the last option), treat it as resolved → **Unambiguous** with appropriate `viable_objects` (dicts from Entity-action for chosen keys only). Do not re-run ambiguity on that settled choice.
+
+**0b — Quantity, count, amount, duration, or other parameter**  
+If history shows the assistant asked for a **detail that is not object-disambiguation** — e.g. **how many**, how much, what size, how long, doneness, temperature — and the **Current Query supplies that detail** (e.g. "3 eggs", "two minutes", "medium rare"):
+- Treat that clarification slot as **resolved**.
+- Return **Unambiguous** with `"ambiguity_type": "None"` and `viable_objects` built only from Entity-action keys that are still **actually ambiguous** for physical selection. If nothing object-related is ambiguous anymore, use **`[]`**.
+- **Do not** stay **Ambiguous** just because the task still mentions generic words like "egg" — the count/detail question was already answered.
+
+Only proceed to Step 1 if neither 0a nor 0b applies.
 
 ### Step 1 — Find the most relevant objects from Entity-action
 
@@ -127,6 +132,13 @@ Inspect the ambiguous viable objects and choose one label (priority: Safety > Co
   - overall ambiguous due to chocolate tablet
 
 {{"classification": "Ambiguous", "ambiguity_type": "Preference", "viable_objects": [{{"dark chocolate tablet": "ingredient to get"}}, {{"milk chocolate tablet": "ingredient to get"}}]}}
+
+**Example 8: Unambiguous — user answered "how many eggs"**
+- Conversation: Assistant asked how many eggs to boil; user said "3 eggs".
+- Current Query: "Boil 3 eggs" (or equivalent one line including the count).
+- Entity-action may list pot, egg, etc. — **no** remaining object ambiguity from the count question; count is settled.
+
+{{"classification": "Unambiguous", "ambiguity_type": "None", "viable_objects": []}}
 
 ## OUTPUT ##
 Return ONLY a JSON object with no extra text.

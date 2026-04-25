@@ -45,6 +45,15 @@ TURN_HISTORY: (empty)
 USER_REQUEST: Get the whisk from the drawer and the bowl from the cabinet.
 STANDALONE: Get the whisk from the drawer and the bowl from the cabinet.
 
+Example 4 (merge count after assistant asked how many)
+TURN_HISTORY:
+User: can you cook the eggs
+Assistant: scrambled, fried, or boiled?
+User: boiled
+Assistant: how many eggs would you like to cook?
+USER_REQUEST: 3 eggs
+STANDALONE: Boil 3 eggs.
+
 Now do the task.
 
 TURN_HISTORY:

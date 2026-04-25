@@ -53,7 +53,7 @@ class VectorSearchNode(BaseNode):
         return await asyncio.to_thread(
             self._vecdb.search,
             query=entity,
-            top_k=1,
+            top_k=5,
             dense_weight=0.4,
             sparse_weight=0.6,
             min_score=0.6,
@@ -109,7 +109,7 @@ class VectorSearchNode(BaseNode):
                 return py_trees.common.Status.SUCCESS
 
             search_results_per_entity = asyncio.run(
-                self._search_all_entities(potential_entities)
+                self._search_all_entities(potential_entities + [standalone_question])
             )
 
             if not search_results_per_entity:

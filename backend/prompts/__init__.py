@@ -9,7 +9,10 @@ from .standalone_question_prompt import build_standalone_question_prompt
 from .potential_entities_predict_prompt import build_potential_entities_prompt
 from .action_prompt import build_entity_actions_prompt
 from .knowno_ambig_classify_prompt import build_knowno_ambig_classify_prompt
+from .knowno_ambig_detect_prompt import build_knowno_ambig_detect_prompt
+from .knowno_ambig_type_prompt import build_knowno_ambig_type_prompt
 from .knowno_response_prompt import build_knowno_response_prompt
+from .knowno_viable_object_prompt import build_knowno_viable_object_prompt
 from .entity_resolve_prompt import build_entity_resolve_prompt
 
 __all__ = [
@@ -23,6 +26,9 @@ __all__ = [
     "build_potential_entities_prompt",
     "build_entity_actions_prompt",
     "build_knowno_ambig_classify_prompt",
+    "build_knowno_ambig_detect_prompt",
+    "build_knowno_ambig_type_prompt",
     "build_knowno_response_prompt",
+    "build_knowno_viable_object_prompt",
     "build_entity_resolve_prompt",
 ]

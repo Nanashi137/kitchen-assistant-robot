@@ -3,27 +3,23 @@ from typing import Dict, Optional
 import py_trees
 from langchain_openai import ChatOpenAI
 from logger import file_logger
-from prompts import build_knowno_ambig_classify_prompt
+from prompts import build_knowno_viable_object_prompt
 
 from .base import BaseNode
 from .black_board import Blackboard
-
 from .llm_json import parse_llm_json_object
 from .viable_objects_util import normalize_viable_objects
 
 
-class KnownoAmbiguousClassifierNode(BaseNode):
+class KnownoViableObjectsNode(BaseNode):
     """
-    Knowno ambiguity: uses vector Top-K + entity_action + query/history; sets is_ambiguous.
+    LLM step: extract viable object-action dicts from entity_action for the current query.
 
     Reads:
-      - standalone_question
-      - turn_history
-      - entity_action
+      - standalone_question, turn_history, entity_action
     Writes:
-      - is_ambiguous
-      - knowno_ambiguity_type
-      - knowno_viable_objects (for clarification response)
+      - viable_objects
+      - knowno_viable_extraction_failed (bool; True if LLM/parse failed)
     """
 
     def __init__(
@@ -47,13 +43,11 @@ class KnownoAmbiguousClassifierNode(BaseNode):
             key="entity_action", access=py_trees.common.Access.READ
         )
         self._client.register_key(
-            key="is_ambiguous", access=py_trees.common.Access.WRITE
-        )
-        self._client.register_key(
-            key="current_ambiguous_type", access=py_trees.common.Access.WRITE
-        )
-        self._client.register_key(
             key="viable_objects", access=py_trees.common.Access.WRITE
+        )
+        self._client.register_key(
+            key="knowno_viable_extraction_failed",
+            access=py_trees.common.Access.WRITE,
         )
 
     def update(self) -> py_trees.common.Status:
@@ -68,8 +62,9 @@ class KnownoAmbiguousClassifierNode(BaseNode):
             if not sq or not str(sq).strip():
                 raise ValueError("blackboard.standalone_question is missing/empty")
 
+            self._client.knowno_viable_extraction_failed = False
 
-            prompt = build_knowno_ambig_classify_prompt(
+            prompt = build_knowno_viable_object_prompt(
                 query=str(sq),
                 entity_action=entity_action,
                 turn_history=list(turn_history),
@@ -77,32 +72,23 @@ class KnownoAmbiguousClassifierNode(BaseNode):
             )
             raw = self._llm.invoke(prompt).content
             data = parse_llm_json_object(raw)
-
-            classification = str(data.get("classification", "")).strip()
-            amb_type = str(data.get("ambiguity_type", "None")).strip() or "None"
             viable_raw = data.get("viable_objects")
-
-            is_ambiguous = "ambiguous" in classification.lower()
-            self._client.is_ambiguous = is_ambiguous
-            self._client.current_ambiguous_type = amb_type
             self._client.viable_objects = normalize_viable_objects(
                 viable_raw, entity_action
             )
-
-            label = "Ambiguous" if is_ambiguous else "Unambiguous"
             file_logger.info(
-                f"KnownoAmbiguousClassifierNode: {label}, type={amb_type!r}"
+                f"KnownoViableObjectsNode: count={len(self._client.viable_objects or [])}"
             )
             self.bb.append_bot_trace_step(
-                f"Classification: {label} ({amb_type})", "ok"
+                f"Viable objects: {len(self._client.viable_objects or [])}",
+                "ok",
             )
             return py_trees.common.Status.SUCCESS
 
         except Exception as e:
             error_msg = f"{type(e).__name__}: {e}"
-            file_logger.error(f"KnownoAmbiguousClassifierNode error: {error_msg}")
-            self._client.is_ambiguous = True
-            self._client.current_ambiguous_type = "Common Sense"
+            file_logger.error(f"KnownoViableObjectsNode error: {error_msg}")
             self._client.viable_objects = []
-            self.bb.append_bot_trace_step("Knowno classification", "fail")
+            self._client.knowno_viable_extraction_failed = True
+            self.bb.append_bot_trace_step("Viable object extraction", "fail")
             return py_trees.common.Status.SUCCESS

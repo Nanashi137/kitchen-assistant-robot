@@ -27,7 +27,10 @@ User may say "whisk" while predicted list has "balloon whisk" — treat as **res
 - Preserve **order** of predicted_entities for kept items.
 - Valid JSON only, no markdown.
 
-## TASK (after M1–M4)
+**M5 — Parameter / quantity already answered**  
+If the assistant asked for **how many, how much, how long**, etc., and the **standalone request** already encodes the answer (e.g. "boil 3 eggs"), drop any predicted entities that only served an **already-answered** detail. Prefer **{{"potential_entities": []}}** when nothing object-related is still open.
+
+## TASK (after M1–M5)
 Return **potential_entities**: the subset of predicted_entities that are **still unresolved** for disambiguation/retrieval **given** history + standalone request.
 
 Output format:

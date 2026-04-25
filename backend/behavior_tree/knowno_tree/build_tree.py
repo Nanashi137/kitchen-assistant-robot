@@ -3,10 +3,23 @@ from typing import Optional
 import py_trees
 from clients import MilvusHybridEntityStore
 from langchain_openai import ChatOpenAI
-from nodes_knowno import (KnownoAmbiguityResponseNode, KnownoAmbiguousClassifierNode,
-                   Blackboard, EntitiesPredictorNode, EntityResolveNode,
-                   EntityActionGeneratorNode, CheckNotAmbiguousNode, LoadHistoryNode,
-                   SaveMessageNode, StandaloneQuestionNode, VectorSearchNode)
+from nodes_knowno import (
+    Blackboard,
+    CheckNotAmbiguousNode,
+    EntitiesPredictorNode,
+    EntityActionGeneratorNode,
+    EntityResolveNode,
+    KnownoAmbigDetectNode,
+    KnownoAmbigTypeNode,
+    KnownoAmbiguityRelatedDetectNode,
+    KnownoAmbiguityResponseNode,
+    KnownoViableObjectsAvailableNode,
+    KnownoViableObjectsNode,
+    LoadHistoryNode,
+    SaveMessageNode,
+    StandaloneQuestionNode,
+    VectorSearchNode,
+)
 from nodes_knowno.action_executor import ActionExecutor
 from nodes.perform_action_node import PerformActionNode
 
@@ -27,7 +40,11 @@ def build_tree(
 
     Flow: after standalone request, entities are predicted then **resolved** (history +
     standalone drop already-settled names), then vector search grounds what remains.
-    The same ``current_related_entities`` list is reused for ambiguity + both routes.
+    The same ``current_related_entities`` list is reused for grounding + both routes.
+    Ambiguity: extract viable objects (LLM), then a **Selector**: if at least one viable
+    object exists, use KnownoAmbigDetect (query + history + viable); otherwise use
+    KnownoAmbiguityRelatedDetect (same idea as ``AmbiguityDetectorNode``: query + history
+    + ``current_related_entities``). Then classify type and clarify on the ambiguous branch.
     """
 
     # Root sequence: load history, standalone request, vector search, ambiguity, path, save
@@ -72,6 +89,7 @@ def build_tree(
         bb=bb,
         vecdb=vecdb,
         max_history_lines=16,
+        fallback_to_question=True,
     )
     root.add_child(vector_search)
 
@@ -83,14 +101,52 @@ def build_tree(
     )
     root.add_child(entity_action_generation_node)
 
-    # Step 4: Detect ambiguity (uses standalone_question + turn_history + related entities)
-    ambiguity_detector = KnownoAmbiguousClassifierNode(
-        name="AmbiguityDetector",
+    # Step 4: Viable objects (LLM), then route ambiguity detect by viable availability
+    viable_objects_node = KnownoViableObjectsNode(
+        name="KnownoViableObjects",
         bb=bb,
         llm=llm,
         max_history_lines=16,
     )
-    root.add_child(ambiguity_detector)
+    root.add_child(viable_objects_node)
+
+    ambiguity_route = py_trees.composites.Selector(
+        name="KnownoAmbiguityRoute", memory=False
+    )
+
+    with_viable = py_trees.composites.Sequence(
+        name="AmbiguityDetectWithViable", memory=True
+    )
+    with_viable.add_child(
+        KnownoViableObjectsAvailableNode(
+            name="KnownoViableObjectsAvailable",
+            bb=bb,
+        )
+    )
+    with_viable.add_child(
+        KnownoAmbigDetectNode(
+            name="KnownoAmbigDetect",
+            bb=bb,
+            llm=llm,
+            max_history_lines=16,
+        )
+    )
+    ambiguity_route.add_child(with_viable)
+
+    without_viable = py_trees.composites.Sequence(
+        name="AmbiguityDetectRelatedOnly", memory=True
+    )
+    without_viable.add_child(
+        KnownoAmbiguityRelatedDetectNode(
+            name="KnownoAmbiguityRelatedDetect",
+            bb=bb,
+            llm=llm,
+            max_history_lines=16,
+        )
+    )
+    ambiguity_route.add_child(without_viable)
+
+    root.add_child(ambiguity_route)
 
     # Step 5: Selector (Fallback) — clear path vs ambiguous path
     path_selector = py_trees.composites.Selector(name="PathSelector", memory=False)
@@ -112,8 +168,15 @@ def build_tree(
     )
     clear_path.add_child(perform_action)
 
-    # Ambiguous path: entities already on blackboard; classify type, then repair
+    # Ambiguous path: type (LLM) then clarification response
     ambiguous_path = py_trees.composites.Sequence(name="AmbiguousPath", memory=True)
+    ambig_type = KnownoAmbigTypeNode(
+        name="KnownoAmbigType",
+        bb=bb,
+        llm=llm,
+        max_history_lines=16,
+    )
+    ambiguous_path.add_child(ambig_type)
     ambiguous_repair = KnownoAmbiguityResponseNode(
         name="AmbiguousRepair",
         bb=bb,

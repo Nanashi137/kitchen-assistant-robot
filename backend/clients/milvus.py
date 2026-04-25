@@ -236,14 +236,13 @@ class MilvusHybridEntityStore:
                 limit=top_k,
                 output_fields=out_fields,
             )
-
         hits = res[0] if isinstance(res, list) else res  # be tolerant
         out: List[SearchResultRow] = []
 
         for hit in hits:
             hid = _hit_get(hit, "id", None)
             score = float(_hit_get(hit, "distance", _hit_get(hit, "score", 0.0)))
-            ent = _hit_entity_field(hit, "entity")
+            ent = hit.get("entity")["entity"]
             if ent is None:
                 # fallback if output_fields differs
                 ent = str(_hit_entity_field(hit, out_fields[0]) or "")
@@ -252,3 +251,31 @@ class MilvusHybridEntityStore:
             out.append(SearchResultRow(id=hid, entity=str(ent), score=score))
 
         return out
+
+if __name__ == "__main__":
+    import os
+    import dotenv
+    dotenv.load_dotenv(r"D:\kitchen-assistant-robot\backend\.env")
+
+    from .text_embedder import DenseEmbedder, SparseEmbedder
+
+    milvus_url = os.getenv("MILVUS_URL", "http://127.0.0.1:1013")
+    text_embedding_url = os.getenv("TEXT_EMBEDDING_URL", "http://localhost:1012")
+    text_embedding_dim = int(os.getenv("TEXT_EMBEDDING_DIM", "1024"))
+    collection_name = os.getenv("COLLECTION_NAME", "entity")
+    bm25_path = "D:\kitchen-assistant-robot\data\embedder\sparse.json"
+    dense_embedder = DenseEmbedder(url=text_embedding_url)
+    sparse_embedder = SparseEmbedder().load(bm25_path)
+    # Example usage
+    store = MilvusHybridEntityStore(
+        uri=milvus_url,
+        collection_name=collection_name,
+        dense_dim=text_embedding_dim,
+        dense_embedder=dense_embedder,
+        sparse_embedder=sparse_embedder
+    )
+    store.ensure_collection()
+    
+    results = store.search("whisk", top_k=5)
+    for r in results:
+        print(r)

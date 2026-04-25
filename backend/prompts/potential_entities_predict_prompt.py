@@ -22,7 +22,10 @@ If CURRENT_USER_REQUEST clearly names the instrument or object (e.g. "scramble e
 **R4 — Empty list is valid**  
 When nothing is left to disambiguate or retrieve for this step, return **{{"potential_entities": []}}**.
 
-## General rules (after R1–R4)
+**R5 — Parameter questions (how many, how much, how long, …)**  
+If CONVERSATION_HISTORY shows the assistant asked for a **number, quantity, amount, duration, size, or similar detail** (not "which physical object") and CURRENT_USER_REQUEST **answers it** (e.g. "3 eggs", "two cups", "5 minutes"), return **{{"potential_entities": []}}** unless a **new** unresolved **object** choice still exists. Do not keep predicting entities that only existed to justify re-asking that detail.
+
+## General rules (after R1–R5)
 
 1. Prefer entities **explicitly** in CURRENT_USER_REQUEST only if they still need retrieval and are not fully settled by history.
 2. Short, lowercase, singular where natural; no duplicates; at most {topk} items.
@@ -56,6 +59,19 @@ User: boil
 Assistant: kettle or pot?
 CURRENT_USER_REQUEST:
 kettle
+Output:
+{{
+  "potential_entities": []
+}}
+
+Example D — user answered how many eggs (R5)
+CONVERSATION_HISTORY:
+User: can you cook the eggs
+Assistant: scrambled, fried, or boiled?
+User: boiled
+Assistant: how many eggs would you like to cook?
+CURRENT_USER_REQUEST:
+3 eggs
 Output:
 {{
   "potential_entities": []

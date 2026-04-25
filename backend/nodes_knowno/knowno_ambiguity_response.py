@@ -16,8 +16,8 @@ class KnownoAmbiguityResponseNode(BaseNode):
     Reads:
       - standalone_question
       - turn_history
-      - knowno_ambiguity_type
-      - knowno_viable_objects
+      - current_ambiguous_type
+      - viable_objects
     Writes:
       - answer
     """
@@ -40,7 +40,7 @@ class KnownoAmbiguityResponseNode(BaseNode):
             key="standalone_question", access=py_trees.common.Access.READ
         )
         self._client.register_key(
-            key="ambiguity_type", access=py_trees.common.Access.READ
+            key="current_ambiguous_type", access=py_trees.common.Access.READ
         )
         self._client.register_key(
             key="viable_objects", access=py_trees.common.Access.READ
@@ -51,8 +51,8 @@ class KnownoAmbiguityResponseNode(BaseNode):
         try:
             sq: Optional[str] = getattr(self._client, "standalone_question", None)
             turn_history = getattr(self._client, "turn_history", None) or []
-            amb_type = getattr(self._client, "knowno_ambiguity_type", None) or "None"
-            viable = getattr(self._client, "knowno_viable_objects", None) or []
+            amb_type = getattr(self._client, "current_ambiguous_type", None) or "None"
+            viable = getattr(self._client, "viable_objects", None) or []
 
             if not sq or not str(sq).strip():
                 raise ValueError("blackboard.standalone_question is missing/empty")
